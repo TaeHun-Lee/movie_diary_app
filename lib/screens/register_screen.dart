@@ -49,6 +49,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       setState(() {
         _isLoading = false;
       });
+      await Future.delayed(const Duration(milliseconds: 800)); // 로딩 상태 유지
     }
   }
 
@@ -67,95 +68,115 @@ class _RegisterScreenState extends State<RegisterScreen> {
       appBar: AppBar(title: const Text('회원가입')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              const Text(
-                '회원가입',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 32),
-              TextFormField(
-                controller: _userIdController,
-                decoration: InputDecoration(
-                  hintText: '아이디',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+        child: Stack(
+          children: [
+            Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  const Text(
+                    '회원가입',
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                   ),
-                  filled: true,
-                  fillColor: Colors.white,
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return '아이디를 입력해주세요';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: InputDecoration(
-                  hintText: '비밀번호',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  const SizedBox(height: 32),
+                  TextFormField(
+                    controller: _userIdController,
+                    decoration: InputDecoration(
+                      hintText: '아이디',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return '아이디를 입력해주세요';
+                      }
+                      if (value.length < 3) {
+                        return '아이디는 3자 이상이어야 합니다';
+                      }
+                      return null;
+                    },
                   ),
-                  filled: true,
-                  fillColor: Colors.white,
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return '비밀번호를 입력해주세요';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _nicknameController,
-                decoration: InputDecoration(
-                  hintText: '닉네임',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _passwordController,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      hintText: '비밀번호',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return '비밀번호를 입력해주세요';
+                      }
+                      if (value.length < 6) {
+                        return '비밀번호는 6자 이상이어야 합니다';
+                      }
+                      return null;
+                    },
                   ),
-                  filled: true,
-                  fillColor: Colors.white,
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return '닉네임을 입력해주세요';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24),
-              if (_errorMessage.isNotEmpty)
-                Text(_errorMessage, style: const TextStyle(color: Colors.red)),
-              if (_successMessage.isNotEmpty)
-                Text(
-                  _successMessage,
-                  style: const TextStyle(color: Colors.green),
-                ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _register,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _nicknameController,
+                    decoration: InputDecoration(
+                      hintText: '닉네임',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return '닉네임을 입력해주세요';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  if (_errorMessage.isNotEmpty)
+                    Text(
+                      _errorMessage,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  if (_successMessage.isNotEmpty)
+                    Text(
+                      _successMessage,
+                      style: const TextStyle(color: Colors.green),
+                    ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _register,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text('회원가입'),
                     ),
                   ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('회원가입'),
+                ],
+              ),
+            ),
+            if (_isLoading)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.transparent,
+                  child: const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  ),
                 ),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );

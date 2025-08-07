@@ -51,7 +51,7 @@ class _AuthCheckState extends State<AuthCheck> {
     }
 
     if (_accessToken != null) {
-      return const HomeScreen();
+      return HomeScreen(accessToken: _accessToken);
     } else {
       return const LoginScreen();
     }
