@@ -14,7 +14,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _nicknameController = TextEditingController();
   String _errorMessage = '';
-  String _successMessage = '';
   bool _isLoading = false;
 
   Future<void> _register() async {
@@ -35,21 +34,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
 
       if (!mounted) return;
-      setState(() {
-        _successMessage = '회원가입 성공! 로그인 화면으로 이동합니다.';
-        _errorMessage = '';
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('회원가입 성공! 로그인해주세요.'),
+          backgroundColor: Colors.green,
+        ),
+      );
       Navigator.pop(context);
     } catch (e) {
       setState(() {
-        _errorMessage = '회원가입 실패: ${e.toString()}';
-        _successMessage = '';
+        _errorMessage = '회원가입 실패: 이미 사용 중인 아이디일 수 있습니다.';
       });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
-      await Future.delayed(const Duration(milliseconds: 800)); // 로딩 상태 유지
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -63,38 +64,42 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.grey[100],
       appBar: AppBar(title: const Text('회원가입')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Stack(
-          children: [
-            Form(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Form(
               key: _formKey,
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
-                    '회원가입',
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                  Text(
+                    '새 계정 만들기',
+                    textAlign: TextAlign.center,
+                    style: textTheme.headlineLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 40),
                   TextFormField(
                     controller: _userIdController,
-                    decoration: InputDecoration(
-                      hintText: '아이디',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
+                    decoration: const InputDecoration(
+                      labelText: '아이디',
+                      prefixIcon: Icon(Icons.person_outline),
+                      border: OutlineInputBorder(),
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return '아이디를 입력해주세요';
+                        return '아이디를 입력해주세요.';
                       }
                       if (value.length < 3) {
-                        return '아이디는 3자 이상이어야 합니다';
+                        return '아이디는 3자 이상이어야 합니다.';
                       }
                       return null;
                     },
@@ -103,20 +108,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   TextFormField(
                     controller: _passwordController,
                     obscureText: true,
-                    decoration: InputDecoration(
-                      hintText: '비밀번호',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
+                    decoration: const InputDecoration(
+                      labelText: '비밀번호',
+                      prefixIcon: Icon(Icons.lock_outline),
+                      border: OutlineInputBorder(),
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return '비밀번호를 입력해주세요';
+                        return '비밀번호를 입력해주세요.';
                       }
                       if (value.length < 6) {
-                        return '비밀번호는 6자 이상이어야 합니다';
+                        return '비밀번호는 6자 이상이어야 합니다.';
                       }
                       return null;
                     },
@@ -124,59 +126,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _nicknameController,
-                    decoration: InputDecoration(
-                      hintText: '닉네임',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
+                    decoration: const InputDecoration(
+                      labelText: '닉네임',
+                      prefixIcon: Icon(Icons.face_outlined),
+                      border: OutlineInputBorder(),
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return '닉네임을 입력해주세요';
+                        return '닉네임을 입력해주세요.';
                       }
                       return null;
                     },
                   ),
-                  const SizedBox(height: 24),
-                  if (_errorMessage.isNotEmpty)
+                  if (_errorMessage.isNotEmpty) ...[
+                    const SizedBox(height: 16),
                     Text(
                       _errorMessage,
-                      style: const TextStyle(color: Colors.red),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: colorScheme.error),
                     ),
-                  if (_successMessage.isNotEmpty)
-                    Text(
-                      _successMessage,
-                      style: const TextStyle(color: Colors.green),
+                  ],
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: _isLoading ? null : _register,
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _register,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text('회원가입'),
-                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(strokeWidth: 3),
+                          )
+                        : const Text('회원가입'),
                   ),
                 ],
               ),
             ),
-            if (_isLoading)
-              Positioned.fill(
-                child: Container(
-                  color: Colors.transparent,
-                  child: const Center(
-                    child: CircularProgressIndicator(color: Colors.white),
-                  ),
-                ),
-              ),
-          ],
+          ),
         ),
       ),
     );

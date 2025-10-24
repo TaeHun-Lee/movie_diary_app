@@ -21,7 +21,6 @@ class _HomeScreenState extends State<HomeScreen> {
   int? totalCount;
   List<Map<String, dynamic>>? recentEntries;
   late Future<HomeData> _homeDataFuture;
-  bool _isLoading = false;
 
   @override
   void initState() {
@@ -32,10 +31,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadUserData() async {
     try {
-      setState(() {
-        _isLoading = true;
-      });
-
       userId = await TokenStorage.getUserId();
 
       await ApiService.getUserInfo(userId!).then((response) {
@@ -51,13 +46,10 @@ class _HomeScreenState extends State<HomeScreen> {
         userId = null;
         nickname = null;
       });
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('오류 발생: ${e.toString()}')));
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 
@@ -66,6 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('access_token');
 
+    if (!mounted) return;
     // 로그인 화면으로 이동
     Navigator.pushAndRemoveUntil(
       context,
@@ -78,9 +71,17 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Movie Diary'),
+        title: const Text(
+          'Movie Diary',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
         actions: [
-          IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _logout,
+            tooltip: '로그아웃',
+          ),
         ],
       ),
       body: FutureBuilder<HomeData>(

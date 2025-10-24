@@ -28,7 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
       });
       return;
     }
-    if (_isLoading) return; // 이미 로딩 중이면 중복 실행 방지
+    if (_isLoading) return;
     setState(() {
       _isLoading = true;
       _errorMessage = '';
@@ -39,12 +39,10 @@ class _LoginScreenState extends State<LoginScreen> {
       if (result['access_token'] == null) {
         throw Exception('Access token not found in response');
       }
-      // 토큰 저장
       await TokenStorage.saveAccessToken(result['access_token']);
       await TokenStorage.saveUserId(userId);
 
       if (!mounted) return;
-      await Future.delayed(const Duration(milliseconds: 2000)); // 로딩 상태 유지
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
@@ -54,12 +52,14 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } catch (e) {
       setState(() {
-        _errorMessage = '로그인 실패: 아이디 또는 비밀번호 확인';
+        _errorMessage = '로그인 실패: 아이디 또는 비밀번호를 확인해주세요.';
       });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -72,99 +72,97 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.grey[200],
-      appBar: AppBar(title: const Text('로그인')),
       body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Stack(
-            children: [
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    'Movie Diary',
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 32),
-                  TextField(
-                    controller: _userIdController,
-                    decoration: InputDecoration(
-                      hintText: '아이디',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: !_isPasswordVisible,
-                    decoration: InputDecoration(
-                      hintText: '비밀번호',
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _isPasswordVisible
-                              ? Icons.visibility
-                              : Icons.visibility_off,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _isPasswordVisible = !_isPasswordVisible;
-                          });
-                        },
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
-                    ),
-                    onFieldSubmitted: (_) => _login(),
-                  ),
-
-                  if (_errorMessage.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      _errorMessage,
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ],
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _login,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text('로그인'),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextButton(
-                    onPressed: _goToRegister,
-                    child: const Text('회원가입'),
-                  ),
-                ],
-              ),
-
-              if (_isLoading)
-                Positioned.fill(
-                  child: Container(
-                    color: Colors.transparent,
-                    child: const Center(
-                      child: CircularProgressIndicator(color: Colors.white),
-                    ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Icon(Icons.movie_filter, size: 64, color: colorScheme.primary),
+                const SizedBox(height: 16),
+                Text(
+                  'Movie Diary',
+                  textAlign: TextAlign.center,
+                  style: textTheme.headlineLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  '로그인하여 영화 기록을 시작하세요',
+                  textAlign: TextAlign.center,
+                  style: textTheme.titleMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 40),
+                TextFormField(
+                  controller: _userIdController,
+                  decoration: const InputDecoration(
+                    labelText: '아이디',
+                    prefixIcon: Icon(Icons.person_outline),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: !_isPasswordVisible,
+                  decoration: InputDecoration(
+                    labelText: '비밀번호',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _isPasswordVisible
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _isPasswordVisible = !_isPasswordVisible;
+                        });
+                      },
+                    ),
+                  ),
+                  onFieldSubmitted: (_) => _login(),
+                ),
+                if (_errorMessage.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    _errorMessage,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: colorScheme.error),
+                  ),
+                ],
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: _isLoading ? null : _login,
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(strokeWidth: 3),
+                        )
+                      : const Text('로그인'),
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: _goToRegister,
+                  child: const Text('계정이 없으신가요? 회원가입'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
