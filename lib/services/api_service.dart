@@ -96,7 +96,6 @@ class ApiService {
         summaryRes.statusCode == 200 &&
         recentRes.statusCode == 200) {
       final user = json.decode(userRes.body);
-      final summary = json.decode(summaryRes.body);
       final recent = json.decode(recentRes.body) as List;
 
       return HomeData(
