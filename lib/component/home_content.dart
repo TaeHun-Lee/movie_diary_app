@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:movie_diary_app/data/home_data.dart';
+import 'package:movie_diary_app/screens/movie_search_screen.dart';
 
 class HomeContent extends StatelessWidget {
   final HomeData data;
@@ -47,7 +48,12 @@ class HomeContent extends StatelessWidget {
         const SizedBox(height: 24),
         FilledButton.icon(
           onPressed: () {
-            // Navigator.pushNamed(context, '/create-diary');
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const MovieSearchScreen(),
+              ),
+            );
           },
           icon: const Icon(Icons.add_circle_outline),
           label: const Text('새 영화 기록하기'),

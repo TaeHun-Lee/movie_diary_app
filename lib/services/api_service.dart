@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:movie_diary_app/data/diary_entry.dart';
 import 'package:movie_diary_app/data/home_data.dart';
+import 'package:movie_diary_app/data/movie.dart';
 import 'package:movie_diary_app/services/token_storage.dart';
 
 class ApiService {
@@ -87,16 +88,10 @@ class ApiService {
       Uri.parse('$baseUrl/post'),
       headers: headers,
     );
-    final recentRes = await http.get(
-      Uri.parse('$baseUrl/post'),
-      headers: headers,
-    );
 
-    if (userRes.statusCode == 200 &&
-        summaryRes.statusCode == 200 &&
-        recentRes.statusCode == 200) {
+    if (userRes.statusCode == 200 && summaryRes.statusCode == 200) {
       final user = json.decode(userRes.body);
-      final recent = json.decode(recentRes.body) as List;
+      final recent = json.decode(summaryRes.body) as List;
 
       return HomeData(
         nickname: user['nickname'],
@@ -106,6 +101,83 @@ class ApiService {
       );
     } else {
       throw Exception('홈 데이터를 불러오는데 실패했습니다.');
+    }
+  }
+
+  static Future<List<Movie>> searchMovies(String title) async {
+    final token = await TokenStorage.getAccessToken();
+    if (token == null) {
+      throw Exception('No access token found');
+    }
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/movies/search?title=$title'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.map((json) => Movie.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to search movies: ${response.reasonPhrase}');
+    }
+  }
+
+  static Future<List<DiaryEntry>> getPostsForMovie(String docId) async {
+    final token = await TokenStorage.getAccessToken();
+    if (token == null) {
+      throw Exception('No access token found');
+    }
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/post'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data
+          .map((json) => DiaryEntry.fromJson(json))
+          .where((entry) => entry.docId == docId)
+          .toList();
+    } else {
+      throw Exception('Failed to fetch posts: ${response.reasonPhrase}');
+    }
+  }
+
+  static Future<void> createPost({
+    required String docId,
+    required String title,
+    required String content,
+    required double rating,
+    required DateTime watchedAt,
+    required Movie movie,
+    String? location,
+  }) async {
+    final token = await TokenStorage.getAccessToken();
+    if (token == null) {
+      throw Exception('No access token found');
+    }
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/post'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'movie_docId': docId,
+        'title': title,
+        'content': content,
+        'rating': rating,
+        'watched_at': watchedAt.toIso8601String(),
+        'movieData': movie.toJson(),
+        if (location != null && location.isNotEmpty) 'place': location,
+      }),
+    );
+
+    if (response.statusCode != 201) {
+      throw Exception('Failed to create post: ${response.reasonPhrase}');
     }
   }
 }
