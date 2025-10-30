@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:movie_diary_app/data/diary_entry.dart';
 import 'package:movie_diary_app/data/movie.dart';
 import 'package:movie_diary_app/services/api_service.dart';
 
 class DiaryWriteScreen extends StatefulWidget {
-  final Movie movie;
+  final Movie? movie;
+  final DiaryEntry? entryToEdit;
 
-  const DiaryWriteScreen({super.key, required this.movie});
+  const DiaryWriteScreen({super.key, this.movie, this.entryToEdit}) :
+    assert(movie != null || entryToEdit != null, 'Either movie or entryToEdit must be provided');
 
   @override
   State<DiaryWriteScreen> createState() => _DiaryWriteScreenState();
@@ -19,6 +22,32 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
   double _rating = 0.0;
   bool _isLoading = false;
   DateTime _watchedAt = DateTime.now();
+  late Movie _currentMovie;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.entryToEdit != null) {
+      // 수정 모드
+      _titleController.text = widget.entryToEdit!.title;
+      _contentController.text = widget.entryToEdit!.content ?? ''; // content가 null일 수 있음
+      _rating = widget.entryToEdit!.rating;
+      _watchedAt = DateTime.parse(widget.entryToEdit!.watchedDate);
+      _locationController.text = widget.entryToEdit!.place ?? ''; // place가 null일 수 있음
+      _currentMovie = widget.entryToEdit!.movie;
+    } else if (widget.movie != null) {
+      // 작성 모드
+      _currentMovie = widget.movie!;
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _contentController.dispose();
+    _locationController.dispose();
+    super.dispose();
+  }
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
@@ -36,18 +65,23 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isEditing = widget.entryToEdit != null;
+    final appBarTitle = isEditing
+        ? '${_currentMovie.title} 다이어리 수정'
+        : '${_currentMovie.title} 다이어리 작성';
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('${widget.movie.title} 다이어리 작성'),
+        title: Text(appBarTitle),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('영화 제목: ${widget.movie.title}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text('영화 제목: ${_currentMovie.title}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            Text('감독: ${widget.movie.director}', style: const TextStyle(fontSize: 16)),
+            Text('감독: ${_currentMovie.director}', style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 16),
             const Text('스틸컷', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
@@ -55,11 +89,11 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
               height: 100,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                itemCount: widget.movie.stillCutUrls.length,
+                itemCount: _currentMovie.stillCutUrls.length,
                 itemBuilder: (context, index) {
                   return Padding(
                     padding: const EdgeInsets.only(right: 8.0),
-                    child: Image.network(widget.movie.stillCutUrls[index]),
+                    child: Image.network(_currentMovie.stillCutUrls[index]),
                   );
                 },
               ),
@@ -93,7 +127,7 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
               min: 0,
               max: 10,
               divisions: 20,
-              label: _rating.toString(),
+              label: _rating.toStringAsFixed(1),
             ),
             const SizedBox(height: 16),
             const Text('본 날짜', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -124,7 +158,7 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
                 ),
                 child: _isLoading
                     ? const CircularProgressIndicator()
-                    : const Text('저장하기'),
+                    : Text(isEditing ? '수정하기' : '저장하기'),
               ),
             ),
           ],
@@ -139,23 +173,36 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
     });
 
     try {
-      await ApiService.createPost(
-        docId: widget.movie.docId,
-        title: _titleController.text,
-        content: _contentController.text,
-        rating: _rating,
-        watchedAt: _watchedAt,
-        location: _locationController.text,
-        movie: widget.movie,
-      );
+      if (widget.entryToEdit != null) {
+        // 수정 모드
+        await ApiService.updatePost(
+          postId: widget.entryToEdit!.id,
+          title: _titleController.text,
+          content: _contentController.text,
+          rating: _rating,
+          watchedAt: _watchedAt,
+          location: _locationController.text,
+        );
+      } else {
+        // 작성 모드
+        await ApiService.createPost(
+          docId: _currentMovie.docId,
+          title: _titleController.text,
+          content: _contentController.text,
+          rating: _rating,
+          watchedAt: _watchedAt,
+          location: _locationController.text,
+          movie: _currentMovie,
+        );
+      }
 
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context, true); // 성공 시 true 반환
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('다이어리 저장에 실패했습니다: $e')),
+          SnackBar(content: Text(widget.entryToEdit != null ? '다이어리 수정에 실패했습니다: $e' : '다이어리 저장에 실패했습니다: $e')),
         );
       }
     }

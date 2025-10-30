@@ -2,64 +2,74 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class TokenStorage {
   static const String _accessTokenKey = 'access_token';
+  static const String _userIdKey = 'user_id';
+  static const String _nicknameKey = 'nickname';
+
+  static Future<void> _saveString(String key, String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(key, value);
+  }
+
+  static Future<String?> _getString(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(key);
+  }
+
+  static Future<void> _clearString(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(key);
+  }
+
+  static Future<bool> _hasString(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.containsKey(key);
+  }
 
   static Future<void> saveAccessToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_accessTokenKey, token);
+    await _saveString(_accessTokenKey, token);
   }
 
   static Future<String?> getAccessToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_accessTokenKey);
+    return _getString(_accessTokenKey);
   }
 
   static Future<void> clearAccessToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_accessTokenKey);
+    await _clearString(_accessTokenKey);
   }
 
   static Future<bool> hasAccessToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.containsKey(_accessTokenKey);
+    return _hasString(_accessTokenKey);
   }
 
   static Future<void> saveUserId(String userId) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_id', userId);
+    await _saveString(_userIdKey, userId);
   }
 
   static Future<String?> getUserId() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('user_id');
+    return _getString(_userIdKey);
   }
 
   static Future<void> clearUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('user_id');
+    await _clearString(_userIdKey);
   }
 
   static Future<bool> hasUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.containsKey('user_id');
+    return _hasString(_userIdKey);
   }
 
   static Future<void> saveNickname(String nickname) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('nickname', nickname);
+    await _saveString(_nicknameKey, nickname);
   }
 
   static Future<String?> getNickname() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('nickname');
+    return _getString(_nicknameKey);
   }
 
   static Future<void> clearNickname() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('nickname');
+    await _clearString(_nicknameKey);
   }
 
   static Future<bool> hasNickname() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.containsKey('nickname');
+    return _hasString(_nicknameKey);
   }
 }

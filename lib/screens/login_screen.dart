@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:movie_diary_app/screens/home_screen.dart';
+import 'package:movie_diary_app/providers/auth_provider.dart';
 import 'package:movie_diary_app/screens/register_screen.dart';
 import 'package:movie_diary_app/services/api_service.dart';
+import 'package:provider/provider.dart';
 import '../services/token_storage.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -39,18 +40,15 @@ class _LoginScreenState extends State<LoginScreen> {
       if (result['access_token'] == null) {
         throw Exception('Access token not found in response');
       }
-      await TokenStorage.saveAccessToken(result['access_token']);
-      await TokenStorage.saveUserId(userId);
 
       if (!mounted) return;
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (_) => HomeScreen(accessToken: result['access_token']),
-        ),
-        (route) => false,
-      );
+
+      final auth = Provider.of<Auth>(context, listen: false);
+      auth.login(result['access_token']);
+      await TokenStorage.saveAccessToken(result['access_token']);
+      await TokenStorage.saveUserId(userId);
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = '로그인 실패: 아이디 또는 비밀번호를 확인해주세요.';
       });
