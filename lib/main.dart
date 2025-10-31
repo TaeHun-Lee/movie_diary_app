@@ -11,7 +11,7 @@ import 'package:provider/provider.dart';
 Future<void> main() async {
   await dotenv.load(fileName: ".env");
   // ApiService 인스턴스를 생성하여 인터셉터를 활성화합니다.
-  ApiService();
+  ApiService.initialize();
   runApp(
     ChangeNotifierProvider(
       create: (context) => Auth(),

@@ -41,7 +41,9 @@ class _MovieDetailContentState extends State<_MovieDetailContent> {
   @override
   void initState() {
     super.initState();
-    _diaryEntriesFuture = ApiService.getPostsForMovie(widget.movie.docId);
+    _diaryEntriesFuture = ApiService.findTop10ForMovieByDocId(
+      widget.movie.docId,
+    );
   }
 
   @override
@@ -52,26 +54,37 @@ class _MovieDetailContentState extends State<_MovieDetailContent> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12.0),
-            child: Image.network(
-              widget.movie.posterUrl,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                return const SizedBox(
-                  height: 300,
-                  child: Center(
-                    child: Icon(Icons.movie_creation_outlined, size: 100),
+            child: widget.movie.posterUrl != null
+                ? Image.network(
+                    widget.movie.posterUrl!,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const SizedBox(
+                        height: 300,
+                        child: Center(
+                          child: Icon(Icons.movie_creation_outlined, size: 100),
+                        ),
+                      );
+                    },
+                  )
+                : Container(
+                    height: 300,
+                    color: Colors.grey,
+                    child: const Center(
+                      child: Text(
+                        'No Poster Available',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      ),
+                    ),
                   ),
-                );
-              },
-            ),
           ),
           const SizedBox(height: 16),
           Text(
             widget.movie.title,
-            style: Theme.of(context)
-                .textTheme
-                .headlineSmall
-                ?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
@@ -113,9 +126,22 @@ class _MovieDetailContentState extends State<_MovieDetailContent> {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         } else if (snapshot.hasError) {
-          return const SizedBox.shrink(); // Don't show anything on error
+          return Center(
+              child: Text(
+            '다이어리를 불러오는 중 오류가 발생했습니다.',
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ));
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const SizedBox.shrink(); // Don't show anything if empty
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24.0),
+              child: Text(
+                '현재 이 영화에 작성된 다이어리가 존재하지 않습니다.\n처음으로 작성해보세요.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+          );
         }
 
         final entries = snapshot.data!;
@@ -124,10 +150,9 @@ class _MovieDetailContentState extends State<_MovieDetailContent> {
           children: [
             Text(
               '내 다이어리',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             ListView.builder(

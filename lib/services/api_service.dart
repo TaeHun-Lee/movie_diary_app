@@ -13,7 +13,9 @@ class ApiService {
   static final Dio _dio = Dio(BaseOptions(baseUrl: baseUrl));
 
   // 클래스 생성 시 인터셉터 설정
-  ApiService() {
+  ApiService();
+
+  static void initialize() {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -93,17 +95,29 @@ class ApiService {
       // 두 API 요청을 동시에 보냄
       final responses = await Future.wait([
         _dio.get('/auth/me'),
-        _dio.get('/posts'),
+        _dio.get('/posts/my'), // 내 포스트만 가져오도록 수정
       ]);
 
       final user = responses[0].data;
-      final recent = responses[1].data as List;
+      final postsData = responses[1].data as List;
+      final recentEntries =
+          postsData.map((e) => DiaryEntry.fromJson(e)).toList();
+
+      // 총 기록 및 오늘 작성 기록 개수 계산
+      final totalCount = recentEntries.length;
+      final now = DateTime.now();
+      final todayCount = recentEntries.where((entry) {
+        final createdAt = entry.createdAt;
+        return createdAt.year == now.year &&
+            createdAt.month == now.month &&
+            createdAt.day == now.day;
+      }).length;
 
       return HomeData(
         nickname: user['nickname'] ?? '사용자',
-        todayCount: 0, // API에 해당 필드가 없으므로 기본값 처리
-        totalCount: 0, // API에 해당 필드가 없으므로 기본값 처리
-        recentEntries: recent.map((e) => DiaryEntry.fromJson(e)).toList(),
+        todayCount: todayCount,
+        totalCount: totalCount,
+        recentEntries: recentEntries,
       );
     } on DioException catch (e) {
       _handleDioError(e, '홈 데이터를 불러오는데 실패했습니다.');
@@ -123,15 +137,15 @@ class ApiService {
     }
   }
 
-  static Future<List<DiaryEntry>> getPostsForMovie(String docId) async {
+  static Future<List<DiaryEntry>> findTop10ForMovieByDocId(String docId) async {
     try {
-      final response = await _dio.get('/posts'); // 이 부분은 API 수정이 필요해 보임
+      final response = await _dio.get('/posts/movie/doc/$docId/popular');
       final List<dynamic> data = response.data;
-      return data
-          .map((json) => DiaryEntry.fromJson(json))
-          .where((entry) => entry.docId == docId)
-          .toList();
+      return data.map((json) => DiaryEntry.fromJson(json)).toList();
     } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return [];
+      }
       _handleDioError(e, 'Failed to fetch posts');
     }
   }
@@ -149,12 +163,11 @@ class ApiService {
       await _dio.post(
         '/posts',
         data: {
-          'movie_docId': docId,
           'title': title,
           'content': content,
           'rating': rating,
           'watched_at': watchedAt.toIso8601String(),
-          'movieData': movie.toJson(),
+          'movie': movie.toJson(), // movieData 대신 movie 필드 사용
           if (location != null && location.isNotEmpty) 'place': location,
         },
       );
@@ -188,14 +201,16 @@ class ApiService {
   }
 
   // 에러 처리 헬퍼 함수
-  static Never _handleDioError(DioException e, String defaultMessage) {
-    if (e.response != null && e.response!.data is Map) {
-      // 서버에서 보낸 구체적인 에러 메시지가 있으면 사용
-      final errorMessage = e.response!.data['message'] ?? defaultMessage;
-      throw Exception(errorMessage);
-    } else {
-      // 그 외의 경우 (네트워크 오류 등) 기본 메시지 사용
-      throw Exception(defaultMessage);
+  static String? buildImageUrl(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return null;
     }
+    const String proxyUrl = 'http://localhost:3000/movies/image?url=';
+    return '$proxyUrl${Uri.encodeQueryComponent(imageUrl)}';
+  }
+
+  // DioException 처리를 위한 헬퍼 함수
+  static Never _handleDioError(DioException e, String message) {
+    throw Exception('$message: ${e.message}');
   }
 }

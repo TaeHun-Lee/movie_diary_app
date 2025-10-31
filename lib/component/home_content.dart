@@ -69,13 +69,11 @@ class HomeContent extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     return FilledButton.icon(
       onPressed: () async {
-        final result = await Navigator.push(
+        await Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const MovieSearchScreen()),
         );
-        if (result == true) {
-          onRefresh?.call();
-        }
+        onRefresh?.call();
       },
       icon: const Icon(Icons.add_circle_outline),
       label: const Text('새 영화 기록하기'),
@@ -105,78 +103,92 @@ class HomeContent extends StatelessWidget {
       );
     }
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: data.recentEntries.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: 0.65,
-      ),
-      itemBuilder: (context, index) {
-        final entry = data.recentEntries[index];
-        // 2. entry.movie 객체와 posterUrl null 체크 강화
-        final posterUrl = entry.movie.posterUrl;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Determine the number of columns based on the width
+        final double width = constraints.maxWidth;
+        int crossAxisCount;
+        if (width >= 1200) {
+          crossAxisCount = 5;
+        } else if (width >= 900) {
+          crossAxisCount = 4;
+        } else if (width >= 600) {
+          crossAxisCount = 3;
+        } else {
+          crossAxisCount = 2;
+        }
 
-        return Card(
-          elevation: 2,
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => DiaryWriteScreen(entryToEdit: entry),
-                ),
-              );
-              if (result == true) {
-                onRefresh?.call();
-              }
-            },
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    color: colorScheme.surfaceContainerHighest,
-                    // 3. 포스터 URL이 비어있거나 유효하지 않을 경우 안전한 위젯 표시
-                    child: (posterUrl.isNotEmpty)
-                        ? Image.network(
-                            posterUrl,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Center(
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: data.recentEntries.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            childAspectRatio: 0.67,
+          ),
+          itemBuilder: (context, index) {
+            final entry = data.recentEntries[index];
+            final posterUrl = entry.movie.posterUrl;
+
+            return Card(
+              elevation: 2,
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          DiaryWriteScreen(entryToEdit: entry),
+                    ),
+                  );
+                  onRefresh?.call();
+                },
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Container(
+                        width: double.infinity,
+                        color: colorScheme.surfaceContainerHighest,
+                        child: (posterUrl?.isNotEmpty == true)
+                            ? Image.network(
+                                posterUrl!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Center(
+                                    child: Icon(
+                                      Icons.movie_creation_outlined,
+                                      size: 48,
+                                    ),
+                                  );
+                                },
+                              )
+                            : const Center(
                                 child: Icon(
                                   Icons.movie_creation_outlined,
                                   size: 48,
                                 ),
-                              );
-                            },
-                          )
-                        : const Center(
-                            child: Icon(
-                              Icons.movie_creation_outlined,
-                              size: 48,
-                            ),
-                          ),
-                  ),
+                              ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        entry.title,
+                        style: textTheme.titleSmall,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  // 4. 제목이 null일 경우 기본값 표시
-                  child: Text(
-                    entry.title,
-                    style: textTheme.titleSmall,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );

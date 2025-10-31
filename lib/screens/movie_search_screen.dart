@@ -72,7 +72,20 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
                         final movie = _movies[index];
                         return Card(
                           child: ListTile(
-                            leading: Image.network(movie.posterUrl),
+                            leading: movie.posterUrl != null
+                                ? Image.network(movie.posterUrl!)
+                                : Container(
+                                    width: 50,
+                                    height: 50,
+                                    color: Colors.grey,
+                                    child: const Center(
+                                      child: Text(
+                                        'No Poster',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(color: Colors.white, fontSize: 10),
+                                      ),
+                                    ),
+                                  ),
                                                             title: Text(movie.title),
                                                             subtitle: Text(movie.director),
                                                             onTap: () {

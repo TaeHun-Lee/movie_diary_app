@@ -197,7 +197,7 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
       }
 
       if (mounted) {
-        Navigator.pop(context, true); // 성공 시 true 반환
+        Navigator.popUntil(context, (route) => route.isFirst); // 홈 화면으로 돌아가기
       }
     } catch (e) {
       if (mounted) {

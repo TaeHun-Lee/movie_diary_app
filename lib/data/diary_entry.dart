@@ -9,6 +9,7 @@ class DiaryEntry {
   final String watchedDate;
   final double rating;
   final Movie movie;
+  final DateTime createdAt;
 
   DiaryEntry({
     required this.id,
@@ -19,18 +20,24 @@ class DiaryEntry {
     required this.watchedDate,
     required this.rating,
     required this.movie,
+    required this.createdAt,
   });
 
   factory DiaryEntry.fromJson(Map<String, dynamic> json) {
     return DiaryEntry(
       id: json['id'] ?? -1,
-      docId: json['movie_docId'] ?? (json['movie'] != null ? json['movie']['docId'] : ''),
+      docId: json['movie_docId'] ??
+          (json['movie'] != null ? json['movie']['docId'] : ''),
       title: json['title'] ?? '',
       content: json['content'],
       place: json['place'],
       watchedDate: json['watched_at'] ?? '',
-      rating: (json['rating'] == null) ? 0.0 : double.parse(json['rating'].toString()),
+      rating: (json['rating'] == null)
+          ? 0.0
+          : double.parse(json['rating'].toString()),
       movie: Movie.fromJson(json['movie'] ?? {}),
+      createdAt: DateTime.parse(
+          json['created_at'] ?? DateTime.now().toIso8601String()),
     );
   }
 }
