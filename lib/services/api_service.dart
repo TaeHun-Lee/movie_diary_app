@@ -30,8 +30,11 @@ class ApiService {
           return handler.next(options); // 요청 계속 진행
         },
         onError: (DioException e, handler) {
+          final path = e.requestOptions.path;
           // 401 에러 발생 시 로그인 페이지로 리디렉션
-          if (e.response?.statusCode == 401) {
+          if (e.response?.statusCode == 401 &&
+              !path.contains('/auth/login') &&
+              !path.contains('/auth/register')) {
             NavigationService.handleUnauthorized();
             // 에러 처리를 여기서 중단하고, 호출한 쪽에서는 아무것도 받지 않게 함
             return handler.reject(
@@ -100,8 +103,9 @@ class ApiService {
 
       final user = responses[0].data;
       final postsData = responses[1].data as List;
-      final recentEntries =
-          postsData.map((e) => DiaryEntry.fromJson(e)).toList();
+      final recentEntries = postsData
+          .map((e) => DiaryEntry.fromJson(e))
+          .toList();
 
       // 총 기록 및 오늘 작성 기록 개수 계산
       final totalCount = recentEntries.length;

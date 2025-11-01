@@ -48,9 +48,8 @@ class _LoginScreenState extends State<LoginScreen> {
       await TokenStorage.saveAccessToken(result['access_token']);
       await TokenStorage.saveUserId(userId);
     } catch (e) {
-      if (!mounted) return;
       setState(() {
-        _errorMessage = '로그인 실패: 아이디 또는 비밀번호를 확인해주세요.';
+        _errorMessage = '아이디 또는 비밀번호가 일치하지 않습니다.';
       });
     } finally {
       if (mounted) {
