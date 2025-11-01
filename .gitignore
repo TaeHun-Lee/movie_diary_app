@@ -46,3 +46,6 @@ app.*.map.json
 
 # GEMINI
 GEMINI.md
+
+#env
+.env.*
