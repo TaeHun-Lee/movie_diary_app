@@ -12,4 +12,26 @@ class HomeData {
     required this.totalCount,
     required this.recentEntries,
   });
+
+  factory HomeData.fromJson(
+      Map<String, dynamic> userJson, List<dynamic> postsJson) {
+    final recentEntries =
+        postsJson.map((e) => DiaryEntry.fromJson(e)).toList();
+
+    final totalCount = recentEntries.length;
+    final now = DateTime.now();
+    final todayCount = recentEntries.where((entry) {
+      final createdAt = entry.createdAt;
+      return createdAt.year == now.year &&
+          createdAt.month == now.month &&
+          createdAt.day == now.day;
+    }).length;
+
+    return HomeData(
+      nickname: userJson['nickname'] ?? '사용자',
+      todayCount: todayCount,
+      totalCount: totalCount,
+      recentEntries: recentEntries,
+    );
+  }
 }

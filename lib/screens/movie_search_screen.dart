@@ -14,6 +14,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<Movie> _movies = [];
   bool _isLoading = false;
+  bool _searchPerformed = false; // 검색 실행 여부 확인
   String? _errorMessage;
 
   Future<void> _searchMovies() async {
@@ -22,6 +23,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
     }
     setState(() {
       _isLoading = true;
+      _searchPerformed = true; // 검색이 실행되었음을 표시
       _errorMessage = null;
     });
 
@@ -65,35 +67,40 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _errorMessage != null
-                  ? Center(child: Text(_errorMessage!))
-                  : ListView.builder(
-                      itemCount: _movies.length,
-                      itemBuilder: (context, index) {
-                        final movie = _movies[index];
-                        return Card(
-                          child: ListTile(
-                            leading: movie.posterUrl != null
-                                ? Image.network(movie.posterUrl!)
-                                : Container(
-                                    width: 50,
-                                    height: 50,
-                                    color: Colors.grey,
-                                    child: const Center(
-                                      child: Text(
-                                        'No Poster',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(color: Colors.white, fontSize: 10),
-                                      ),
-                                    ),
+                      ? Center(child: Text(_errorMessage!))
+                      : _searchPerformed && _movies.isEmpty
+                          ? const Center(child: Text('검색 결과가 없습니다.'))
+                          : ListView.builder(
+                              itemCount: _movies.length,
+                              itemBuilder: (context, index) {
+                                final movie = _movies[index];
+                                return Card(
+                                  child: ListTile(
+                                    leading: movie.posterUrl != null
+                                        ? Image.network(movie.posterUrl!)
+                                        : Container(
+                                            width: 50,
+                                            height: 50,
+                                            color: Colors.grey,
+                                            child: const Center(
+                                              child: Text(
+                                                'No Poster',
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 10),
+                                              ),
+                                            ),
+                                          ),
+                                    title: Text(movie.title),
+                                    subtitle: Text(movie.director),
+                                    onTap: () {
+                                      showMovieDetailModal(context, movie);
+                                    },
                                   ),
-                                                            title: Text(movie.title),
-                                                            subtitle: Text(movie.director),
-                                                            onTap: () {
-                                                              showMovieDetailModal(context, movie);
-                                                            },
-                                                          ),
-                                                        );                      },
-                    ),
+                                );
+                              },
+                            ),
             ),
           ],
         ),

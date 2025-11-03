@@ -101,28 +101,10 @@ class ApiService {
         _dio.get('/posts/my'), // 내 포스트만 가져오도록 수정
       ]);
 
-      final user = responses[0].data;
-      final postsData = responses[1].data as List;
-      final recentEntries = postsData
-          .map((e) => DiaryEntry.fromJson(e))
-          .toList();
+      final userJson = responses[0].data;
+      final postsJson = responses[1].data as List;
 
-      // 총 기록 및 오늘 작성 기록 개수 계산
-      final totalCount = recentEntries.length;
-      final now = DateTime.now();
-      final todayCount = recentEntries.where((entry) {
-        final createdAt = entry.createdAt;
-        return createdAt.year == now.year &&
-            createdAt.month == now.month &&
-            createdAt.day == now.day;
-      }).length;
-
-      return HomeData(
-        nickname: user['nickname'] ?? '사용자',
-        todayCount: todayCount,
-        totalCount: totalCount,
-        recentEntries: recentEntries,
-      );
+      return HomeData.fromJson(userJson, postsJson);
     } on DioException catch (e) {
       _handleDioError(e, '홈 데이터를 불러오는데 실패했습니다.');
     }

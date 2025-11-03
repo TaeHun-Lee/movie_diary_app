@@ -32,7 +32,9 @@ class Movie {
 
     return Movie(
       docId: json['docId'] ?? '',
-      title: json['title'] ?? '',
+      title: (json['title'] as String? ?? '')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim(),
       director: json['director'] ?? '',
       summary: json['plot'] ?? '',
       posterUrl: ApiService.buildImageUrl(poster),
