@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:movie_diary_app/providers/auth_provider.dart';
-import 'package:provider/provider.dart';
 import 'package:movie_diary_app/component/home_content.dart';
 import 'package:movie_diary_app/data/home_data.dart';
 import 'package:movie_diary_app/services/api_service.dart';
@@ -31,11 +29,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> _logout() async {
-    final auth = Provider.of<Auth>(context, listen: false);
-    await auth.logout();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -45,13 +38,6 @@ class _HomeScreenState extends State<HomeScreen> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
-            tooltip: '로그아웃',
-          ),
-        ],
       ),
       body: FutureBuilder<HomeData>(
         future: _homeDataFuture,

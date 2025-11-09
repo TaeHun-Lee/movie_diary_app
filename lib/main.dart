@@ -1,7 +1,7 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/material.dart';
 import 'package:movie_diary_app/providers/auth_provider.dart';
-import 'package:movie_diary_app/screens/home_screen.dart';
+import 'package:movie_diary_app/screens/main_screen.dart';
 import 'package:movie_diary_app/screens/login_screen.dart';
 import 'package:movie_diary_app/services/api_service.dart';
 import 'package:movie_diary_app/services/navigation_service.dart';
@@ -72,7 +72,7 @@ class _AuthCheckState extends State<AuthCheck> {
 
     final auth = Provider.of<Auth>(context);
     if (auth.isLoggedIn) {
-      return const HomeScreen();
+      return const MainScreen();
     } else {
       return const LoginScreen();
     }
