@@ -4,8 +4,8 @@ import 'package:movie_diary_app/data/movie.dart';
 import 'package:movie_diary_app/screens/diary_write_screen.dart';
 import 'package:movie_diary_app/services/api_service.dart';
 
-void showMovieDetailModal(BuildContext context, Movie movie) {
-  showDialog(
+Future<dynamic> showMovieDetailModal(BuildContext context, Movie movie) {
+  return showDialog(
     context: context,
     builder: (BuildContext context) {
       return Dialog(
@@ -91,6 +91,8 @@ class _MovieDetailContentState extends State<_MovieDetailContent> {
             '감독: ${widget.movie.director}',
             style: Theme.of(context).textTheme.titleMedium,
           ),
+          const SizedBox(height: 8),
+          _buildGenreChips(context),
           const SizedBox(height: 16),
           Text(
             widget.movie.summary,
@@ -100,14 +102,19 @@ class _MovieDetailContentState extends State<_MovieDetailContent> {
           _buildDiaryEntriesList(),
           const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context); // Close the modal
-              Navigator.push(
+            onPressed: () async {
+              // 모달을 닫지 않고, 작성 화면으로 이동하여 결과를 기다린다.
+              final result = await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => DiaryWriteScreen(movie: widget.movie),
                 ),
               );
+
+              // 작성 화면에서 true를 반환했다면, 모달도 true를 반환하며 닫힌다.
+              if (result == true && context.mounted) {
+                Navigator.pop(context, true);
+              }
             },
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -127,10 +134,11 @@ class _MovieDetailContentState extends State<_MovieDetailContent> {
           return const Center(child: CircularProgressIndicator());
         } else if (snapshot.hasError) {
           return Center(
-              child: Text(
-            '다이어리를 불러오는 중 오류가 발생했습니다.',
-            style: TextStyle(color: Theme.of(context).colorScheme.error),
-          ));
+            child: Text(
+              '다이어리를 불러오는 중 오류가 발생했습니다.',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          );
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return Center(
             child: Padding(
@@ -177,6 +185,26 @@ class _MovieDetailContentState extends State<_MovieDetailContent> {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildGenreChips(BuildContext context) {
+    if (widget.movie.genres.isEmpty ||
+        (widget.movie.genres.length == 1 &&
+            widget.movie.genres.first.isEmpty)) {
+      return const SizedBox.shrink();
+    }
+
+    return Wrap(
+      spacing: 8.0,
+      runSpacing: 4.0,
+      children: widget.movie.genres.map((genre) {
+        return Chip(
+          label: Text(genre),
+          backgroundColor: Colors.grey[200],
+          shape: const StadiumBorder(),
+        );
+      }).toList(),
     );
   }
 }

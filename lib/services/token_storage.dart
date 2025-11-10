@@ -72,4 +72,9 @@ class TokenStorage {
   static Future<bool> hasNickname() async {
     return _hasString(_nicknameKey);
   }
+
+  static Future<void> clearTokens() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+  }
 }

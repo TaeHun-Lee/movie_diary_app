@@ -82,6 +82,8 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
             Text('영화 제목: ${_currentMovie.title}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Text('감독: ${_currentMovie.director}', style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 8),
+            _buildGenreChips(context),
             const SizedBox(height: 16),
             const Text('스틸컷', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
@@ -149,18 +151,46 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _saveDiary,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+            if (isEditing)
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _saveDiary,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: _isLoading
+                          ? const CircularProgressIndicator()
+                          : const Text('수정하기'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _isLoading ? null : _deleteDiary,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox.shrink()
+                        : const Text('삭제하기', style: TextStyle(color: Colors.white)),
+                  ),
+                ],
+              )
+            else
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _saveDiary,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: _isLoading
+                      ? const CircularProgressIndicator()
+                      : const Text('저장하기'),
                 ),
-                child: _isLoading
-                    ? const CircularProgressIndicator()
-                    : Text(isEditing ? '수정하기' : '저장하기'),
               ),
-            ),
           ],
         ),
       ),
@@ -197,7 +227,8 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
       }
 
       if (mounted) {
-        Navigator.popUntil(context, (route) => route.isFirst); // 홈 화면으로 돌아가기
+        // 이전 화면으로 돌아가면서 true 값을 전달하여, 화면 새로고침을 유도
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
@@ -213,6 +244,71 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
         });
       }
     }
+  }
+
+  Future<void> _deleteDiary() async {
+    final bool? confirmed = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('삭제 확인'),
+        content: const Text('정말로 이 다이어리를 삭제하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        await ApiService.deletePost(widget.entryToEdit!.id);
+
+        if (mounted) {
+          Navigator.pop(context, true); // true를 반환하여 이전 화면에서 새로고침하도록 함
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('다이어리 삭제에 실패했습니다: $e')),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    }
+  }
+
+  Widget _buildGenreChips(BuildContext context) {
+    if (_currentMovie.genres.isEmpty ||
+        (_currentMovie.genres.length == 1 && _currentMovie.genres.first.isEmpty)) {
+      return const SizedBox.shrink();
+    }
+
+    return Wrap(
+      spacing: 8.0,
+      runSpacing: 4.0,
+      children: _currentMovie.genres.map((genre) {
+        return Chip(
+          label: Text(genre),
+          backgroundColor: Colors.grey[200],
+          shape: const StadiumBorder(),
+        );
+      }).toList(),
+    );
   }
 }
 

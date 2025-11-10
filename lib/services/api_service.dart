@@ -62,7 +62,7 @@ class ApiService {
         '/auth/login',
         data: {'user_id': userId, 'password': password},
       );
-      return response.data;
+      return response.data['data'];
     } on DioException catch (e) {
       _handleDioError(e, 'Failed to login');
     }
@@ -71,7 +71,7 @@ class ApiService {
   static Future<Map<String, dynamic>> getUserInfo(String userId) async {
     try {
       final response = await _dio.get('/users/$userId');
-      return response.data;
+      return response.data['data'];
     } on DioException catch (e) {
       _handleDioError(e, 'Failed to fetch user info');
     }
@@ -87,7 +87,7 @@ class ApiService {
         '/auth/register',
         data: {'user_id': userId, 'password': password, 'nickname': nickname},
       );
-      return response.data;
+      return response.data['data'];
     } on DioException catch (e) {
       _handleDioError(e, 'Failed to register');
     }
@@ -101,12 +101,22 @@ class ApiService {
         _dio.get('/posts/my'), // 내 포스트만 가져오도록 수정
       ]);
 
-      final userJson = responses[0].data;
-      final postsJson = responses[1].data as List;
+      final userJson = responses[0].data['data'];
+      final postsJson = responses[1].data['data'] as List;
 
       return HomeData.fromJson(userJson, postsJson);
     } on DioException catch (e) {
       _handleDioError(e, '홈 데이터를 불러오는데 실패했습니다.');
+    }
+  }
+
+  static Future<List<DiaryEntry>> getMyPosts() async {
+    try {
+      final response = await _dio.get('/posts/my');
+      final List<dynamic> data = response.data['data'];
+      return data.map((json) => DiaryEntry.fromJson(json)).toList();
+    } on DioException catch (e) {
+      _handleDioError(e, '내가 쓴 다이어리를 불러오는데 실패했습니다.');
     }
   }
 
@@ -116,7 +126,7 @@ class ApiService {
         '/movies/search',
         queryParameters: {'title': title},
       );
-      final List<dynamic> data = response.data;
+      final List<dynamic> data = response.data['data'];
       return data.map((json) => Movie.fromJson(json)).toList();
     } on DioException catch (e) {
       _handleDioError(e, 'Failed to search movies');
@@ -126,7 +136,7 @@ class ApiService {
   static Future<List<DiaryEntry>> findTop10ForMovieByDocId(String docId) async {
     try {
       final response = await _dio.get('/posts/movie/doc/$docId/popular');
-      final List<dynamic> data = response.data;
+      final List<dynamic> data = response.data['data'];
       return data.map((json) => DiaryEntry.fromJson(json)).toList();
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) {
@@ -183,6 +193,14 @@ class ApiService {
       );
     } on DioException catch (e) {
       _handleDioError(e, 'Failed to update post');
+    }
+  }
+
+  static Future<void> deletePost(int postId) async {
+    try {
+      await _dio.delete('/posts/$postId');
+    } on DioException catch (e) {
+      _handleDioError(e, 'Failed to delete post');
     }
   }
 

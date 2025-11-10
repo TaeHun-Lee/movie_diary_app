@@ -13,10 +13,7 @@ Future<void> main() async {
   // ApiService 인스턴스를 생성하여 인터셉터를 활성화합니다.
   ApiService.initialize();
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => Auth(),
-      child: const MyApp(),
-    ),
+    ChangeNotifierProvider(create: (context) => Auth(), child: const MyApp()),
   );
 }
 
@@ -29,6 +26,24 @@ class MyApp extends StatelessWidget {
       navigatorKey: NavigationService.navigatorKey,
       title: 'Movie Diary',
       theme: ThemeData(
+        fontFamily: 'NotoSansKR',
+        textTheme: const TextTheme(
+          displayLarge: TextStyle(fontWeight: FontWeight.w700),
+          displayMedium: TextStyle(fontWeight: FontWeight.w700),
+          displaySmall: TextStyle(fontWeight: FontWeight.w700),
+          headlineLarge: TextStyle(fontWeight: FontWeight.w700),
+          headlineMedium: TextStyle(fontWeight: FontWeight.w700),
+          headlineSmall: TextStyle(fontWeight: FontWeight.w700),
+          titleLarge: TextStyle(fontWeight: FontWeight.w700),
+          titleMedium: TextStyle(fontWeight: FontWeight.w700),
+          titleSmall: TextStyle(fontWeight: FontWeight.w700),
+          bodyLarge: TextStyle(fontWeight: FontWeight.w700),
+          bodyMedium: TextStyle(fontWeight: FontWeight.w700),
+          bodySmall: TextStyle(fontWeight: FontWeight.w700),
+          labelLarge: TextStyle(fontWeight: FontWeight.w700),
+          labelMedium: TextStyle(fontWeight: FontWeight.w700),
+          labelSmall: TextStyle(fontWeight: FontWeight.w700),
+        ),
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),

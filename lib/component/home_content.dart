@@ -18,7 +18,7 @@ class HomeContent extends StatelessWidget {
       children: [
         // 1. 닉네임 null 체크 강화
         Text(
-          '${data.nickname}님, 안녕하세요 👋',
+          '${data.user.nickname}님, 안녕하세요 👋',
           style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 24),
@@ -69,11 +69,13 @@ class HomeContent extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     return FilledButton.icon(
       onPressed: () async {
-        await Navigator.push(
+        final result = await Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const MovieSearchScreen()),
         );
-        onRefresh?.call();
+        if (result == true) {
+          onRefresh?.call();
+        }
       },
       icon: const Icon(Icons.add_circle_outline),
       label: const Text('새 영화 기록하기'),
@@ -137,14 +139,16 @@ class HomeContent extends StatelessWidget {
               clipBehavior: Clip.antiAlias,
               child: InkWell(
                 onTap: () async {
-                  await Navigator.push(
+                  final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) =>
                           DiaryWriteScreen(entryToEdit: entry),
                     ),
                   );
-                  onRefresh?.call();
+                  if (result == true) {
+                    onRefresh?.call();
+                  }
                 },
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,

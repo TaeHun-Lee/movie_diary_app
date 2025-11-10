@@ -1,13 +1,27 @@
 import 'package:movie_diary_app/data/diary_entry.dart';
 
-class HomeData {
+class User {
   final String nickname;
+  final String userId;
+
+  User({required this.nickname, required this.userId});
+
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      nickname: json['nickname'] as String,
+      userId: json['user_id'] as String,
+    );
+  }
+}
+
+class HomeData {
+  final User user;
   final int todayCount;
   final int totalCount;
   final List<DiaryEntry> recentEntries;
 
   HomeData({
-    required this.nickname,
+    required this.user,
     required this.todayCount,
     required this.totalCount,
     required this.recentEntries,
@@ -28,7 +42,7 @@ class HomeData {
     }).length;
 
     return HomeData(
-      nickname: userJson['nickname'] ?? '사용자',
+      user: User.fromJson(userJson),
       todayCount: todayCount,
       totalCount: totalCount,
       recentEntries: recentEntries,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:movie_diary_app/component/movie_detail_modal.dart';
 import 'package:movie_diary_app/data/movie.dart';
+import 'package:movie_diary_app/screens/diary_write_screen.dart';
 import 'package:movie_diary_app/services/api_service.dart';
 
 class MovieSearchScreen extends StatefulWidget {
@@ -67,40 +68,45 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _errorMessage != null
-                      ? Center(child: Text(_errorMessage!))
-                      : _searchPerformed && _movies.isEmpty
-                          ? const Center(child: Text('검색 결과가 없습니다.'))
-                          : ListView.builder(
-                              itemCount: _movies.length,
-                              itemBuilder: (context, index) {
-                                final movie = _movies[index];
-                                return Card(
-                                  child: ListTile(
-                                    leading: movie.posterUrl != null
-                                        ? Image.network(movie.posterUrl!)
-                                        : Container(
-                                            width: 50,
-                                            height: 50,
-                                            color: Colors.grey,
-                                            child: const Center(
-                                              child: Text(
-                                                'No Poster',
-                                                textAlign: TextAlign.center,
-                                                style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 10),
-                                              ),
-                                            ),
-                                          ),
-                                    title: Text(movie.title),
-                                    subtitle: Text(movie.director),
-                                    onTap: () {
-                                      showMovieDetailModal(context, movie);
-                                    },
+                  ? Center(child: Text(_errorMessage!))
+                  : _searchPerformed && _movies.isEmpty
+                  ? const Center(child: Text('검색 결과가 없습니다.'))
+                  : ListView.builder(
+                      itemCount: _movies.length,
+                      itemBuilder: (context, index) {
+                        final movie = _movies[index];
+                        return Card(
+                          child: ListTile(
+                            leading: movie.posterUrl != null
+                                ? Image.network(movie.posterUrl!)
+                                : Container(
+                                    width: 50,
+                                    height: 50,
+                                    color: Colors.grey,
+                                    child: const Center(
+                                      child: Text(
+                                        'No Poster',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                );
-                              },
-                            ),
+                            title: Text(movie.title),
+                            subtitle: Text(movie.director),
+                                                                onTap: () async {
+                                                                  final result =
+                                                                      await showMovieDetailModal(
+                                                                          context, movie);
+                                                                  if (result == true && context.mounted) {
+                                                                    Navigator.pop(context, true);
+                                                                  }
+                                                                },                          ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),

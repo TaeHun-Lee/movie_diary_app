@@ -7,6 +7,7 @@ class Movie {
   final String summary;
   final String? posterUrl;
   final List<String> stillCutUrls;
+  final List<String> genres;
 
   Movie({
     required this.docId,
@@ -15,11 +16,13 @@ class Movie {
     required this.summary,
     this.posterUrl,
     required this.stillCutUrls,
+    required this.genres,
   });
 
   factory Movie.fromJson(Map<String, dynamic> json) {
     final poster = json['poster'];
     final stills = json['stills'];
+    final genresList = json['genres'] as List<dynamic>? ?? [];
 
     List<String> processedStills = [];
     if (stills is List) {
@@ -39,6 +42,12 @@ class Movie {
       summary: json['plot'] ?? '',
       posterUrl: ApiService.buildImageUrl(poster),
       stillCutUrls: processedStills,
+      genres: genresList.map((e) {
+        if (e is Map) {
+          return e['name'].toString();
+        }
+        return e.toString();
+      }).toList(),
     );
   }
 
@@ -50,6 +59,7 @@ class Movie {
       'plot': summary,
       'poster': posterUrl,
       'stills': stillCutUrls,
+      'genres': genres,
     };
   }
 }

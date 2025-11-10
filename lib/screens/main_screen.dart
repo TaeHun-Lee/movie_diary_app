@@ -12,11 +12,12 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _bottomNavIndex = 0;
+  int _selectedIndex = 0;
 
   final List<Widget> _pages = [
     const HomeScreen(),
     const ExploreScreen(),
+    Container(), // 글쓰기 탭을 위한 플레이스홀더
     const MyPageScreen(),
   ];
 
@@ -29,23 +30,16 @@ class _MainScreenState extends State<MainScreen> {
       );
     } else {
       setState(() {
-        _bottomNavIndex = index;
+        _selectedIndex = index;
       });
     }
-  }
-
-  int get _pageIndex {
-    if (_bottomNavIndex >= 2) {
-      return _bottomNavIndex - 1;
-    }
-    return _bottomNavIndex;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(
-        index: _pageIndex,
+        index: _selectedIndex,
         children: _pages,
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -71,7 +65,7 @@ class _MainScreenState extends State<MainScreen> {
             label: '마이페이지',
           ),
         ],
-        currentIndex: _bottomNavIndex,
+        currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
         selectedItemColor: Theme.of(context).colorScheme.primary,
