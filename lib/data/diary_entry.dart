@@ -10,6 +10,8 @@ class DiaryEntry {
   final double rating;
   final Movie movie;
   final DateTime createdAt;
+  final String authorNickname;
+  final int likeCount;
 
   DiaryEntry({
     required this.id,
@@ -21,6 +23,8 @@ class DiaryEntry {
     required this.rating,
     required this.movie,
     required this.createdAt,
+    required this.authorNickname,
+    required this.likeCount,
   });
 
   factory DiaryEntry.fromJson(Map<String, dynamic> json) {
@@ -38,6 +42,8 @@ class DiaryEntry {
       movie: Movie.fromJson(json['movie'] ?? {}),
       createdAt: DateTime.parse(
           json['created_at'] ?? DateTime.now().toIso8601String()),
+      authorNickname: json['user']?['nickname'] ?? 'Unknown',
+      likeCount: (json['likes'] as List?)?.length ?? 0,
     );
   }
 }

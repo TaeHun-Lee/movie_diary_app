@@ -120,6 +120,16 @@ class ApiService {
     }
   }
 
+  static Future<List<DiaryEntry>> getPopularPosts() async {
+    try {
+      final response = await _dio.get('/posts/popular');
+      final List<dynamic> data = response.data['data'];
+      return data.map((json) => DiaryEntry.fromJson(json)).toList();
+    } on DioException catch (e) {
+      _handleDioError(e, '인기 다이어리를 불러오는데 실패했습니다.');
+    }
+  }
+
   static Future<List<Movie>> searchMovies(String title) async {
     try {
       final response = await _dio.get(
