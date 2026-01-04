@@ -1,16 +1,19 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:movie_diary_app/providers/auth_provider.dart';
 import 'package:movie_diary_app/screens/main_screen.dart';
 import 'package:movie_diary_app/screens/login_screen.dart';
+import 'package:movie_diary_app/screens/register_screen.dart';
 import 'package:movie_diary_app/services/api_service.dart';
 import 'package:movie_diary_app/services/navigation_service.dart';
 import 'package:movie_diary_app/services/token_storage.dart';
-import 'package:provider/provider.dart';
+import 'package:movie_diary_app/constants.dart';
+
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 Future<void> main() async {
   await dotenv.load(fileName: ".env");
-  // ApiService 인스턴스를 생성하여 인터셉터를 활성화합니다.
   ApiService.initialize();
   runApp(
     ChangeNotifierProvider(create: (context) => Auth(), child: const MyApp()),
@@ -25,29 +28,49 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       navigatorKey: NavigationService.navigatorKey,
       title: 'Movie Diary',
+      debugShowCheckedModeBanner: false,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('ko', 'KR'), Locale('en', 'US')],
       theme: ThemeData(
         fontFamily: 'NotoSansKR',
-        textTheme: const TextTheme(
-          displayLarge: TextStyle(fontWeight: FontWeight.w700),
-          displayMedium: TextStyle(fontWeight: FontWeight.w700),
-          displaySmall: TextStyle(fontWeight: FontWeight.w700),
-          headlineLarge: TextStyle(fontWeight: FontWeight.w700),
-          headlineMedium: TextStyle(fontWeight: FontWeight.w700),
-          headlineSmall: TextStyle(fontWeight: FontWeight.w700),
-          titleLarge: TextStyle(fontWeight: FontWeight.w700),
-          titleMedium: TextStyle(fontWeight: FontWeight.w700),
-          titleSmall: TextStyle(fontWeight: FontWeight.w700),
-          bodyLarge: TextStyle(fontWeight: FontWeight.w700),
-          bodyMedium: TextStyle(fontWeight: FontWeight.w700),
-          bodySmall: TextStyle(fontWeight: FontWeight.w700),
-          labelLarge: TextStyle(fontWeight: FontWeight.w700),
-          labelMedium: TextStyle(fontWeight: FontWeight.w700),
-          labelSmall: TextStyle(fontWeight: FontWeight.w700),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: kPrimaryDarkColor,
+          primary: kPrimaryDarkColor,
+          secondary: kAccentGoldColor,
         ),
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
+        // 텍스트 필드 기본 테마 설정
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 16,
+            horizontal: 20,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: kPrimaryDarkColor.withValues(alpha: 0.3),
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: kAccentGoldColor, width: 2),
+          ),
+          labelStyle: TextStyle(color: kTextDarkColor.withValues(alpha: 0.6)),
+          prefixIconColor: kPrimaryDarkColor,
+        ),
       ),
       home: const AuthCheck(),
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/register': (context) => const RegisterScreen(),
+        '/home': (context) => const MainScreen(),
+      },
     );
   }
 }

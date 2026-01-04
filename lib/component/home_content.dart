@@ -3,227 +3,295 @@ import 'package:movie_diary_app/data/home_data.dart';
 import 'package:movie_diary_app/screens/diary_write_screen.dart';
 import 'package:movie_diary_app/screens/movie_search_screen.dart';
 
-class HomeContent extends StatelessWidget {
+class HomeContent extends StatefulWidget {
   final HomeData data;
   final VoidCallback? onRefresh;
+  final VoidCallback? onSearchTap;
 
-  const HomeContent({super.key, required this.data, this.onRefresh});
+  const HomeContent({
+    super.key,
+    required this.data,
+    this.onRefresh,
+    this.onSearchTap,
+  });
+
+  @override
+  State<HomeContent> createState() => _HomeContentState();
+}
+
+class _HomeContentState extends State<HomeContent> {
+  String _selectedGenre = '전체';
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
+    // 1. Extract Unique Genres
+    final allGenres =
+        widget.data.recentEntries.expand((e) => e.movie.genres).toSet().toList()
+          ..sort();
+    final categories = ['전체', ...allGenres];
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
+    // 2. Filter Entries
+    final filteredEntries = _selectedGenre == '전체'
+        ? widget.data.recentEntries
+        : widget.data.recentEntries
+              .where((e) => e.movie.genres.contains(_selectedGenre))
+              .toList();
+
+    return Column(
       children: [
-        // 1. 닉네임 null 체크 강화
-        Text(
-          '${data.user.nickname}님, 안녕하세요 👋',
-          style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+        // 1. Search Bar
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: GestureDetector(
+            onTap: () async {
+              if (widget.onSearchTap != null) {
+                widget.onSearchTap!();
+              } else {
+                // 검색 화면으로 이동
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const MovieSearchScreen(),
+                  ),
+                );
+                if (result == true) {
+                  widget.onRefresh?.call();
+                }
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2C2C2C), // Dark grey for search bar
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: const [
+                  Icon(Icons.search, color: Colors.grey),
+                  SizedBox(width: 8),
+                  Text(
+                    '영화 검색...',
+                    style: TextStyle(color: Colors.grey, fontSize: 16),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-        const SizedBox(height: 24),
-        _buildSummaryCard(context),
-        const SizedBox(height: 24),
-        _buildNewDiaryButton(context),
-        const SizedBox(height: 32),
-        Text(
-          '최근 영화 기록',
-          style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+
+        // 2. Category Chips (Dynamic)
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: categories.map((category) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: _buildCategoryChip(
+                  category,
+                  isSelected: category == _selectedGenre,
+                ),
+              );
+            }).toList(),
+          ),
         ),
-        const SizedBox(height: 16),
-        _buildRecentEntriesGrid(context),
+
+        // 3. Movie Grid
+        Expanded(child: _buildMovieGrid(filteredEntries)),
       ],
     );
   }
 
-  Widget _buildSummaryCard(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Card(
-      elevation: 0,
-      color: colorScheme.surfaceContainerHighest,
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildSummaryItem(
-              context,
-              '오늘 작성',
-              data.todayCount.toString(),
-              Icons.edit_note_outlined,
-            ),
-            const SizedBox(height: 50, child: VerticalDivider()),
-            _buildSummaryItem(
-              context,
-              '총 기록',
-              data.totalCount.toString(),
-              Icons.collections_bookmark_outlined,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNewDiaryButton(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return FilledButton.icon(
-      onPressed: () async {
-        final result = await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const MovieSearchScreen()),
-        );
-        if (result == true) {
-          onRefresh?.call();
-        }
+  Widget _buildCategoryChip(String label, {bool isSelected = false}) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedGenre = label;
+        });
       },
-      icon: const Icon(Icons.add_circle_outline),
-      label: const Text('새 영화 기록하기'),
-      style: FilledButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        textStyle: textTheme.titleMedium,
-      ),
-    );
-  }
-
-  Widget _buildRecentEntriesGrid(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-
-    if (data.recentEntries.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 40.0),
-          child: Text(
-            '아직 작성된 기록이 없어요.\n첫 영화 기록을 남겨보세요!',
-            textAlign: TextAlign.center,
-            style: textTheme.bodyLarge?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFE51937) : const Color(0xFF1E1E1E),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.grey,
+            fontWeight: FontWeight.bold,
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildMovieGrid(List<dynamic> entries) {
+    if (entries.isEmpty) {
+      return const Center(
+        child: Text('저장된 영화가 없습니다.', style: TextStyle(color: Colors.grey)),
       );
     }
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Determine the number of columns based on the width
-        final double width = constraints.maxWidth;
-        int crossAxisCount;
-        if (width >= 1200) {
-          crossAxisCount = 5;
-        } else if (width >= 900) {
-          crossAxisCount = 4;
-        } else if (width >= 600) {
-          crossAxisCount = 3;
-        } else {
-          crossAxisCount = 2;
-        }
-
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: data.recentEntries.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            childAspectRatio: 0.67,
-          ),
-          itemBuilder: (context, index) {
-            final entry = data.recentEntries[index];
-            final posterUrl = entry.movie.posterUrl;
-
-            return Card(
-              elevation: 2,
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: () async {
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          DiaryWriteScreen(entryToEdit: entry),
-                    ),
-                  );
-                  if (result == true) {
-                    onRefresh?.call();
-                  }
-                },
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Container(
-                        width: double.infinity,
-                        color: colorScheme.surfaceContainerHighest,
-                        child: (posterUrl?.isNotEmpty == true)
-                            ? Image.network(
-                                posterUrl!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return const Center(
-                                    child: Icon(
-                                      Icons.movie_creation_outlined,
-                                      size: 48,
-                                    ),
-                                  );
-                                },
-                              )
-                            : const Center(
-                                child: Icon(
-                                  Icons.movie_creation_outlined,
-                                  size: 48,
-                                ),
-                              ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        entry.title,
-                        style: textTheme.titleSmall,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        childAspectRatio: 0.52, // Shortened height (increased ratio)
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 16,
+      ),
+      itemCount: entries.length,
+      itemBuilder: (context, index) {
+        final entry = entries[index];
+        return _buildMovieCard(context, entry);
       },
     );
   }
 
-  Widget _buildSummaryItem(
-    BuildContext context,
-    String label,
-    String value,
-    IconData icon,
-  ) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Expanded(
-      child: Column(
-        children: [
-          Icon(icon, color: colorScheme.primary, size: 28),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+  Widget _buildMovieCard(BuildContext context, dynamic entry) {
+    return GestureDetector(
+      onTap: () async {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DiaryWriteScreen(entryToEdit: entry),
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
+        );
+        if (result == true) {
+          widget.onRefresh?.call();
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1E1E), // Card background color
+          borderRadius: BorderRadius.circular(12),
+        ),
+        clipBehavior: Clip.antiAlias, // Clip image to radius
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Poster with Padding
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  10,
+                  10,
+                  10,
+                  0,
+                ), // Increased padding
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8), // Inner radius
+                    image: DecorationImage(
+                      image: NetworkImage(entry.movie.posterUrl ?? ''),
+                      fit: BoxFit.cover,
+                      onError: (exception, stackTrace) {},
+                    ),
+                    color: Colors.grey[800],
+                  ),
+                  child: entry.movie.posterUrl == null
+                      ? const Center(
+                          child: Icon(Icons.movie, color: Colors.white54),
+                        )
+                      : null,
+                ),
+              ),
             ),
-          ),
-        ],
+
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title
+                  Text(
+                    entry.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+
+                  // Star Rating (Scaled 10 -> 5)
+                  Row(
+                    children: [
+                      ...List.generate(5, (index) {
+                        double scaledRating =
+                            entry.rating / 2; // Scale 0-10 to 0-5
+
+                        IconData icon = Icons.star_border;
+                        Color color = Colors.grey;
+
+                        if (scaledRating >= index + 1) {
+                          icon = Icons.star;
+                          color = Colors.amber;
+                        } else if (scaledRating > index) {
+                          icon = Icons.star_half;
+                          color = Colors.amber;
+                        }
+
+                        return Icon(icon, color: color, size: 12);
+                      }),
+                      const SizedBox(width: 4),
+                      Text(
+                        entry.rating.toString(), // Keep original score label
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 6),
+
+                  // Genre Tags (Horizontal List)
+                  if (entry.movie.genres.isNotEmpty)
+                    SizedBox(
+                      height: 16,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: entry.movie.genres.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 4),
+                        itemBuilder: (context, index) {
+                          final genre = entry.movie.genres[index];
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE51937),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              genre,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9, // Slightly smaller
+                                fontWeight: FontWeight.bold,
+                                height: 1.1, // Tight height
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    )
+                  else
+                    const SizedBox(height: 16), // Maintain height if no genres?
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

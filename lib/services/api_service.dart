@@ -5,6 +5,9 @@ import 'package:movie_diary_app/data/home_data.dart';
 import 'package:movie_diary_app/data/movie.dart';
 import 'package:movie_diary_app/services/navigation_service.dart';
 import 'package:movie_diary_app/services/token_storage.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ApiService {
   static final String baseUrl = dotenv.env['BASE_URL']!;
@@ -34,7 +37,10 @@ class ApiService {
           // 401 에러 발생 시 로그인 페이지로 리디렉션
           if (e.response?.statusCode == 401 &&
               !path.contains('/auth/login') &&
-              !path.contains('/auth/register')) {
+              !path.contains('/auth/register') &&
+              !path.contains('/auth/security-question') &&
+              !path.contains('/auth/reset-password') &&
+              !path.contains('/auth/change-password')) {
             NavigationService.handleUnauthorized();
             // 에러 처리를 여기서 중단하고, 호출한 쪽에서는 아무것도 받지 않게 함
             return handler.reject(
@@ -80,16 +86,102 @@ class ApiService {
   static Future<Map<String, dynamic>> register(
     String userId,
     String password,
-    String nickname,
-  ) async {
+    String nickname, {
+    String? securityQuestion,
+    String? securityAnswer,
+  }) async {
     try {
-      final response = await _dio.post(
-        '/auth/register',
-        data: {'user_id': userId, 'password': password, 'nickname': nickname},
-      );
+      final data = {
+        'user_id': userId,
+        'password': password,
+        'nickname': nickname,
+      };
+      if (securityQuestion != null) {
+        data['security_question'] = securityQuestion;
+      }
+      if (securityAnswer != null) {
+        data['security_answer'] = securityAnswer;
+      }
+
+      final response = await _dio.post('/auth/register', data: data);
       return response.data['data'];
     } on DioException catch (e) {
       _handleDioError(e, 'Failed to register');
+    }
+  }
+
+  static Future<String?> uploadPhoto(XFile file) async {
+    try {
+      String fileName = file.name;
+      FormData formData;
+
+      if (kIsWeb) {
+        final bytes = await file.readAsBytes();
+        formData = FormData.fromMap({
+          'file': MultipartFile.fromBytes(bytes, filename: fileName),
+        });
+      } else {
+        formData = FormData.fromMap({
+          'file': await MultipartFile.fromFile(file.path, filename: fileName),
+        });
+      }
+
+      final response = await _dio.post('/uploads', data: formData);
+      return response.data['data']['url'];
+    } on DioException catch (e) {
+      _handleDioError(e, 'Failed to upload photo');
+    }
+  }
+
+  static Future<String?> getSecurityQuestion(String userId) async {
+    try {
+      final response = await _dio.get('/auth/security-question/$userId');
+      return response.data['data']['question'];
+    } on DioException catch (e) {
+      // User not found or no question set
+      if (e.response?.statusCode == 404 || e.response?.statusCode == 401) {
+        throw Exception('사용자를 찾을 수 없거나 보안 질문이 설정되지 않았습니다.');
+      }
+      _handleDioError(e, 'Failed to get security question');
+    }
+  }
+
+  static Future<void> changePassword(
+    String oldPassword,
+    String newPassword,
+  ) async {
+    try {
+      await _dio.post(
+        '/auth/change-password',
+        data: {'old_password': oldPassword, 'new_password': newPassword},
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        throw Exception('기존 비밀번호가 일치하지 않습니다.');
+      }
+      _handleDioError(e, '비밀번호 변경에 실패했습니다.');
+    }
+  }
+
+  static Future<void> resetPassword(
+    String userId,
+    String securityAnswer,
+    String newPassword,
+  ) async {
+    try {
+      await _dio.post(
+        '/auth/reset-password',
+        data: {
+          'user_id': userId,
+          'security_answer': securityAnswer,
+          'new_password': newPassword,
+        },
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401 || e.response?.statusCode == 400) {
+        throw Exception('비밀번호 재설정에 실패했습니다. 답변이 틀렸을 수 있습니다.');
+      }
+      _handleDioError(e, '비밀번호 재설정에 실패했습니다.');
     }
   }
 
@@ -130,11 +222,14 @@ class ApiService {
     }
   }
 
-  static Future<List<Movie>> searchMovies(String title) async {
+  static Future<List<Movie>> searchMovies(
+    String title, {
+    int startCount = 0,
+  }) async {
     try {
       final response = await _dio.get(
         '/movies/search',
-        queryParameters: {'title': title},
+        queryParameters: {'title': title, 'startCount': startCount},
       );
       final List<dynamic> data = response.data['data'];
       return data.map((json) => Movie.fromJson(json)).toList();
@@ -143,9 +238,9 @@ class ApiService {
     }
   }
 
-  static Future<List<DiaryEntry>> findTop10ForMovieByDocId(String docId) async {
+  static Future<List<DiaryEntry>> getMyReviewsForMovie(String docId) async {
     try {
-      final response = await _dio.get('/posts/movie/doc/$docId/popular');
+      final response = await _dio.get('/posts/movie/doc/$docId/my-reviews');
       final List<dynamic> data = response.data['data'];
       return data.map((json) => DiaryEntry.fromJson(json)).toList();
     } on DioException catch (e) {
@@ -164,6 +259,8 @@ class ApiService {
     required DateTime watchedAt,
     required Movie movie,
     String? location,
+    bool isSpoiler = false,
+    List<String>? photoUrls,
   }) async {
     try {
       await _dio.post(
@@ -173,8 +270,10 @@ class ApiService {
           'content': content,
           'rating': rating,
           'watched_at': watchedAt.toIso8601String(),
-          'movie': movie.toJson(), // movieData 대신 movie 필드 사용
+          'movie': movie.toJson(),
+          'is_spoiler': isSpoiler,
           if (location != null && location.isNotEmpty) 'place': location,
+          if (photoUrls != null) 'photo_urls': photoUrls,
         },
       );
     } on DioException catch (e) {
@@ -189,6 +288,8 @@ class ApiService {
     required double rating,
     required DateTime watchedAt,
     String? location,
+    bool? isSpoiler,
+    List<String>? photoUrls,
   }) async {
     try {
       await _dio.patch(
@@ -199,6 +300,8 @@ class ApiService {
           'rating': rating,
           'watched_at': watchedAt.toIso8601String(),
           if (location != null && location.isNotEmpty) 'place': location,
+          if (isSpoiler != null) 'is_spoiler': isSpoiler,
+          if (photoUrls != null) 'photo_urls': photoUrls,
         },
       );
     } on DioException catch (e) {
@@ -214,13 +317,110 @@ class ApiService {
     }
   }
 
-  // 에러 처리 헬퍼 함수
-  static String? buildImageUrl(String? imageUrl) {
+  static String? buildImageUrl(String? imagePath) {
+    if (imagePath == null || imagePath.isEmpty) return null;
+    imagePath = imagePath.trim();
+
+    // 1. 이미 프록시 URL인 경우 중복 처리 방지
+    if (imagePath.contains('/movies/image?url=')) {
+      if (imagePath.contains('localhost') && baseUrl.contains('10.0.2.2')) {
+        return imagePath.replaceFirst('localhost', '10.0.2.2');
+      }
+      return imagePath;
+    }
+
+    // 2. 내부 서버(업로드 이미지)인 경우 프록시 타지 않고 호스트만 보정
+    if (imagePath.contains('localhost') || imagePath.contains('10.0.2.2')) {
+      if (imagePath.contains('localhost') && baseUrl.contains('10.0.2.2')) {
+        return imagePath.replaceFirst('localhost', '10.0.2.2');
+      }
+      return imagePath;
+    }
+
+    // 3. 외부 URL인 경우 프록시 URL 생성
+    if (imagePath.startsWith('http')) {
+      final String proxyUrl = '$baseUrl/movies/image?url=';
+      return '$proxyUrl${Uri.encodeQueryComponent(imagePath)}';
+    }
+
+    // 4. 상대 경로인 경우 Base URL 붙이기
+    return '$baseUrl$imagePath';
+  }
+
+  static String? extractOriginalUrl(String? imageUrl) {
     if (imageUrl == null || imageUrl.isEmpty) {
       return null;
     }
-    const String proxyUrl = 'http://localhost:3000/movies/image?url=';
-    return '$proxyUrl${Uri.encodeQueryComponent(imageUrl)}';
+    if (imageUrl.contains('url=')) {
+      final uri = Uri.parse(imageUrl);
+      final originalUrl = uri.queryParameters['url'];
+      if (originalUrl != null) {
+        return originalUrl;
+      }
+    }
+    return imageUrl;
+  }
+
+  // 프로필 업데이트
+  static Future<void> updateProfile(int id, Map<String, dynamic> data) async {
+    try {
+      await _dio.patch('/users/$id', data: data);
+    } on DioException catch (e) {
+      _handleDioError(e, '프로필 수정에 실패했습니다.');
+    }
+  }
+
+  // 회원 탈퇴
+  static Future<void> deleteUser(int id) async {
+    try {
+      await _dio.delete('/users/$id');
+    } on DioException catch (e) {
+      _handleDioError(e, '회원 탈퇴에 실패했습니다.');
+    }
+  }
+
+  // Personal Diary
+  static Future<void> savePersonalDiary(String date, String content) async {
+    try {
+      // Backend create handles upsert logic
+      await _dio.post(
+        '/personal-diary',
+        data: {'date': date, 'content': content},
+      );
+    } on DioException catch (e) {
+      _handleDioError(e, '일기 저장에 실패했습니다.');
+    }
+  }
+
+  static Future<List<dynamic>> getPersonalDiaries() async {
+    try {
+      final response = await _dio.get('/personal-diary');
+      return response.data['data']; // Correctly access the data field
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return [];
+      }
+      _handleDioError(e, '일기 목록을 불러오는데 실패했습니다.');
+    }
+  }
+
+  static Future<Map<String, dynamic>?> getPersonalDiaryByDate(
+    String date,
+  ) async {
+    try {
+      final response = await _dio.get('/personal-diary/date/$date');
+      return response.data['data'];
+    } on DioException {
+      return null;
+    }
+  }
+
+  static Future<void> deletePersonalDiary(int id) async {
+    try {
+      await _dio.delete('/personal-diary/$id');
+    } on DioException catch (e) {
+      _handleDioError(e, '일기 삭제에 실패했습니다.');
+    }
   }
 
   // DioException 처리를 위한 헬퍼 함수

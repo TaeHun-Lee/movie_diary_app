@@ -12,6 +12,8 @@ class DiaryEntry {
   final DateTime createdAt;
   final String authorNickname;
   final int likeCount;
+  final bool isSpoiler;
+  final List<String> images;
 
   DiaryEntry({
     required this.id,
@@ -25,12 +27,15 @@ class DiaryEntry {
     required this.createdAt,
     required this.authorNickname,
     required this.likeCount,
+    required this.isSpoiler,
+    required this.images,
   });
 
   factory DiaryEntry.fromJson(Map<String, dynamic> json) {
     return DiaryEntry(
       id: json['id'] ?? -1,
-      docId: json['movie_docId'] ??
+      docId:
+          json['movie_docId'] ??
           (json['movie'] != null ? json['movie']['docId'] : ''),
       title: json['title'] ?? '',
       content: json['content'],
@@ -40,10 +45,15 @@ class DiaryEntry {
           ? 0.0
           : double.parse(json['rating'].toString()),
       movie: Movie.fromJson(json['movie'] ?? {}),
-      createdAt: DateTime.parse(
-          json['created_at'] ?? DateTime.now().toIso8601String()),
+      createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
       authorNickname: json['user']?['nickname'] ?? 'Unknown',
       likeCount: (json['likes'] as List?)?.length ?? 0,
+      isSpoiler: json['is_spoiler'] ?? false,
+      images:
+          (json['photos'] as List?)
+              ?.map((p) => p['photo_url'] as String)
+              .toList() ??
+          [],
     );
   }
 }

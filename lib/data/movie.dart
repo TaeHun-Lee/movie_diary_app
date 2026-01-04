@@ -8,6 +8,7 @@ class Movie {
   final String? posterUrl;
   final List<String> stillCutUrls;
   final List<String> genres;
+  final String releaseDate;
 
   Movie({
     required this.docId,
@@ -17,6 +18,7 @@ class Movie {
     this.posterUrl,
     required this.stillCutUrls,
     required this.genres,
+    required this.releaseDate,
   });
 
   factory Movie.fromJson(Map<String, dynamic> json) {
@@ -42,6 +44,7 @@ class Movie {
       summary: json['plot'] ?? '',
       posterUrl: ApiService.buildImageUrl(poster),
       stillCutUrls: processedStills,
+      releaseDate: json['releaseDate'] ?? json['prodYear'] ?? '',
       genres: genresList.map((e) {
         if (e is Map) {
           return e['name'].toString();
@@ -57,9 +60,12 @@ class Movie {
       'title': title,
       'director': director,
       'plot': summary,
-      'poster': posterUrl,
-      'stills': stillCutUrls,
+      'poster': ApiService.extractOriginalUrl(posterUrl),
+      'stills': stillCutUrls
+          .map((url) => ApiService.extractOriginalUrl(url) ?? url)
+          .toList(),
       'genres': genres,
+      'releaseDate': releaseDate,
     };
   }
 }
