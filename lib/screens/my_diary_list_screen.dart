@@ -159,7 +159,6 @@ class _MyDiaryListScreenState extends State<MyDiaryListScreen> {
               surface: Color(0xFF1E1E1E),
               onSurface: Colors.white,
             ),
-            dialogBackgroundColor: const Color(0xFF1E1E1E),
             scaffoldBackgroundColor: const Color(0xFF1E1E1E),
             appBarTheme: const AppBarTheme(
               backgroundColor: Colors.black,
@@ -183,6 +182,9 @@ class _MyDiaryListScreenState extends State<MyDiaryListScreen> {
               labelLarge: TextStyle(color: Colors.white),
               labelMedium: TextStyle(color: Colors.white),
               labelSmall: TextStyle(color: Colors.white),
+            ),
+            dialogTheme: DialogThemeData(
+              backgroundColor: const Color(0xFF1E1E1E),
             ),
           ),
           child: child!,

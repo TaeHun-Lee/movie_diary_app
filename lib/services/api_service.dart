@@ -5,12 +5,17 @@ import 'package:movie_diary_app/data/home_data.dart';
 import 'package:movie_diary_app/data/movie.dart';
 import 'package:movie_diary_app/services/navigation_service.dart';
 import 'package:movie_diary_app/services/token_storage.dart';
-import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
 
 class ApiService {
-  static final String baseUrl = dotenv.env['BASE_URL']!;
+  // 배포 모드(Release)에서는 상대 경로('')를 사용하여 Nginx 프록시를 태움
+  // 개발 모드(Debug/Profile)에서는 .env의 BASE_URL(예: localhost:3000)을 사용
+  // Web 배포 모드일 때만 상대 경로('') 사용 (Nginx 프록시)
+  // Mobile(Android/iOS)이거나 개발 모드일 때는 .env의 절대 경로 사용
+  static final String baseUrl = (kIsWeb && kReleaseMode)
+      ? ''
+      : dotenv.env['BASE_URL']!;
 
   // Dio 인스턴스 생성
   static final Dio _dio = Dio(BaseOptions(baseUrl: baseUrl));
@@ -209,16 +214,6 @@ class ApiService {
       return data.map((json) => DiaryEntry.fromJson(json)).toList();
     } on DioException catch (e) {
       _handleDioError(e, '내가 쓴 다이어리를 불러오는데 실패했습니다.');
-    }
-  }
-
-  static Future<List<DiaryEntry>> getPopularPosts() async {
-    try {
-      final response = await _dio.get('/posts/popular');
-      final List<dynamic> data = response.data['data'];
-      return data.map((json) => DiaryEntry.fromJson(json)).toList();
-    } on DioException catch (e) {
-      _handleDioError(e, '인기 다이어리를 불러오는데 실패했습니다.');
     }
   }
 

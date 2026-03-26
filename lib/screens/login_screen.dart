@@ -237,6 +237,8 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  bool _obscurePassword = true; // State variable for password visibility
+
   Widget _buildTextField({
     required TextEditingController controller,
     required String hintText,
@@ -246,14 +248,32 @@ class _LoginScreenState extends State<LoginScreen> {
   }) {
     return TextField(
       controller: controller,
-      obscureText: isPassword,
-      style: const TextStyle(color: Colors.white),
+      obscureText: isPassword ? _obscurePassword : false,
+      textAlignVertical:
+          TextAlignVertical.center, // Align text to center to prevent clipping
+      style: const TextStyle(
+        color: Colors.white,
+        height: 1.3,
+      ), // Safe height for input
       cursorColor: Colors.white,
       decoration: InputDecoration(
         filled: false,
         hintText: hintText,
         hintStyle: const TextStyle(color: Colors.white70),
         prefixIcon: Icon(icon, color: Colors.white),
+        suffixIcon: isPassword
+            ? IconButton(
+                icon: Icon(
+                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                  color: Colors.white70,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _obscurePassword = !_obscurePassword;
+                  });
+                },
+              )
+            : null,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 16,
