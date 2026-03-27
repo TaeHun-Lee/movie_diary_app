@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:movie_diary_app/constants.dart';
+import 'package:movie_diary_app/main.dart';
 import 'package:movie_diary_app/providers/auth_provider.dart';
 import 'package:movie_diary_app/screens/register_screen.dart';
 import 'package:movie_diary_app/services/api_service.dart';
 import 'package:provider/provider.dart';
 import 'package:movie_diary_app/screens/main_screen.dart';
-import 'package:movie_diary_app/screens/forgot_password_screen.dart';
 import '../services/token_storage.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -18,31 +18,33 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _userIdController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  String _errorMessage = '';
+  bool _obscurePassword = true;
   bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _userIdController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _login() async {
     final userId = _userIdController.text.trim();
     final password = _passwordController.text;
 
     if (userId.isEmpty || password.isEmpty) {
-      setState(() {
-        _errorMessage = '아이디와 비밀번호를 모두 입력해주세요.';
-      });
+      _showSnackBar('아이디와 비밀번호를 모두 입력해주세요.');
       return;
     }
     if (_isLoading) return;
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
+
+    setState(() => _isLoading = true);
 
     try {
       final result = await ApiService.login(userId: userId, password: password);
       if (result['access_token'] == null) {
-        throw Exception('Access token not found in response');
+        throw Exception('Access token not found');
       }
-
       if (!mounted) return;
 
       final auth = Provider.of<Auth>(context, listen: false);
@@ -52,242 +54,251 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const MainScreen()),
+        MaterialPageRoute(builder: (_) => const MainScreen()),
       );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('아이디 또는 비밀번호가 일치하지 않습니다.')),
-        );
-      }
-      setState(() {
-        _errorMessage = '아이디 또는 비밀번호가 일치하지 않습니다.';
-      });
+    } catch (_) {
+      if (mounted) _showSnackBar('아이디 또는 비밀번호가 일치하지 않습니다.');
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _goToRegister() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const RegisterScreen()),
+  void _showSnackBar(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          // Background Image
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/login_background_pure_design.png',
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(color: kPrimaryDarkColor);
-              },
+      backgroundColor: kSurface,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height -
+                  MediaQuery.of(context).padding.top -
+                  MediaQuery.of(context).padding.bottom,
             ),
-          ),
-
-          // Content
-          Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: IntrinsicHeight(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 60),
-                  const SizedBox(height: 60),
-                  // Logo
-                  Image.asset(
-                    'assets/images/logo.png',
-                    width: 200,
-                    height: 200,
-                    fit: BoxFit.contain,
-                  ),
-                  const SizedBox(height: 20),
-                  RichText(
-                    text: const TextSpan(
-                      children: [
-                        TextSpan(
-                          text: 'MOVIE ',
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
-                        TextSpan(
-                          text: 'DIARY',
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: kPrimaryRedColor,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 80),
+                  const Spacer(flex: 2),
 
-                  // Inputs
-                  _buildTextField(
+                  // ── 로고 & 타이틀 ──────────────────────
+                  _buildHeader(),
+
+                  const SizedBox(height: 48),
+
+                  // ── 입력 필드 ────────────────────────────
+                  _buildInputField(
                     controller: _userIdController,
-                    hintText: '이메일',
-                    icon: Icons.mail_outline,
+                    hint: '이메일 또는 아이디',
+                    icon: Icons.mail_outline_rounded,
                   ),
                   const SizedBox(height: 16),
-                  _buildTextField(
+                  _buildInputField(
                     controller: _passwordController,
-                    hintText: '비밀번호',
-                    icon: Icons.lock_outline,
+                    hint: '비밀번호',
+                    icon: Icons.lock_outline_rounded,
                     isPassword: true,
                     onSubmitted: (_) => _login(),
                   ),
 
-                  if (_errorMessage.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      _errorMessage,
-                      style: const TextStyle(
-                        color: Colors.redAccent,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
+                  const SizedBox(height: 32),
 
-                  const SizedBox(height: 30),
-
-                  // Login Button
+                  // ── 로그인 버튼 ────────────────────────
                   SizedBox(
                     width: double.infinity,
-                    height: 55,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _login,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: kPrimaryRedColor,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        elevation: 5,
-                      ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                              '로그인',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                    child: GradientButton(
+                      text: '로그인 →',
+                      onPressed: _login,
+                      isLoading: _isLoading,
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
-                  // Links
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  const ForgotPasswordScreen(),
-                            ),
-                          );
-                        },
-                        child: const Text(
-                          '비밀번호를 잊으셨나요?',
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: _goToRegister,
-                        child: const Text(
-                          '회원가입',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 40),
+                  // ── 회원가입 링크 ─────────────────────
+                  _buildSignUpLink(),
+
+                  const Spacer(flex: 3),
                 ],
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 
-  bool _obscurePassword = true; // State variable for password visibility
+  Widget _buildHeader() {
+    return Column(
+      children: [
+        // 클래퍼보드 아이콘 서클
+        Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            color: kSurfaceHigh,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: kSurfaceDim.withValues(alpha: 0.5),
+                blurRadius: 12,
+                offset: const Offset(4, 4),
+              ),
+              BoxShadow(
+                color: kSurfaceLowest.withValues(alpha: 0.9),
+                blurRadius: 12,
+                offset: const Offset(-4, -4),
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.movie_creation_outlined,
+            size: 34,
+            color: kPrimary,
+          ),
+        ),
+        const SizedBox(height: 20),
 
-  Widget _buildTextField({
+        // 앱 이름
+        const Text(
+          'Movie Diary',
+          style: TextStyle(
+            fontFamily: kHeadlineFont,
+            fontSize: 30,
+            fontWeight: FontWeight.w800,
+            color: kOnSurface,
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 6),
+
+        // 서브타이틀
+        Text(
+          'Your personal cinema sanctuary',
+          style: TextStyle(
+            fontFamily: kBodyFont,
+            fontSize: 14,
+            color: kOnSurfaceVariant.withValues(alpha: 0.8),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInputField({
     required TextEditingController controller,
-    required String hintText,
+    required String hint,
     required IconData icon,
     bool isPassword = false,
     Function(String)? onSubmitted,
   }) {
-    return TextField(
-      controller: controller,
-      obscureText: isPassword ? _obscurePassword : false,
-      textAlignVertical:
-          TextAlignVertical.center, // Align text to center to prevent clipping
-      style: const TextStyle(
-        color: Colors.white,
-        height: 1.3,
-      ), // Safe height for input
-      cursorColor: Colors.white,
-      decoration: InputDecoration(
-        filled: false,
-        hintText: hintText,
-        hintStyle: const TextStyle(color: Colors.white70),
-        prefixIcon: Icon(icon, color: Colors.white),
-        suffixIcon: isPassword
-            ? IconButton(
-                icon: Icon(
-                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                  color: Colors.white70,
-                ),
-                onPressed: () {
-                  setState(() {
-                    _obscurePassword = !_obscurePassword;
-                  });
-                },
-              )
-            : null,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 16,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Colors.white),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: kAccentGoldColor, width: 2),
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: kSurfaceHigh,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D000000),
+            blurRadius: 5,
+            offset: Offset(2, 2),
+          ),
+          BoxShadow(
+            color: Colors.white,
+            blurRadius: 5,
+            offset: Offset(-2, -2),
+          ),
+        ],
       ),
-      onSubmitted: onSubmitted,
+      child: TextField(
+        controller: controller,
+        obscureText: isPassword && _obscurePassword,
+        style: const TextStyle(
+          fontFamily: kBodyFont,
+          color: kOnSurface,
+          fontSize: 15,
+        ),
+        cursorColor: kPrimary,
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(
+            color: kOnSurfaceVariant.withValues(alpha: 0.55),
+            fontSize: 14,
+          ),
+          prefixIcon: Icon(icon, color: kOnSurfaceVariant, size: 20),
+          suffixIcon: isPassword
+              ? IconButton(
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: kOnSurfaceVariant,
+                    size: 20,
+                  ),
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
+                )
+              : null,
+          filled: true,
+          fillColor: Colors.transparent,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(
+              color: kPrimary.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 18,
+            horizontal: 20,
+          ),
+        ),
+        onSubmitted: onSubmitted,
+      ),
+    );
+  }
+
+  Widget _buildSignUpLink() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          '계정이 없으신가요? ',
+          style: TextStyle(
+            fontFamily: kBodyFont,
+            fontSize: 14,
+            color: kOnSurfaceVariant.withValues(alpha: 0.8),
+          ),
+        ),
+        GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const RegisterScreen()),
+          ),
+          child: const Text(
+            '회원가입',
+            style: TextStyle(
+              fontFamily: kBodyFont,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: kPrimary,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

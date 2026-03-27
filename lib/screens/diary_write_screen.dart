@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
+import 'package:movie_diary_app/constants.dart';
 import 'package:movie_diary_app/data/diary_entry.dart';
 import 'package:movie_diary_app/data/movie.dart';
 import 'package:movie_diary_app/services/api_service.dart';
@@ -11,12 +13,17 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 class DiaryWriteScreen extends StatefulWidget {
   final Movie? movie;
   final DiaryEntry? entryToEdit;
+  final String? heroTag;
 
-  const DiaryWriteScreen({super.key, this.movie, this.entryToEdit})
-    : assert(
-        movie != null || entryToEdit != null,
-        'Either movie or entryToEdit must be provided',
-      );
+  const DiaryWriteScreen({
+    super.key,
+    this.movie,
+    this.entryToEdit,
+    this.heroTag,
+  }) : assert(
+          movie != null || entryToEdit != null,
+          'Either movie or entryToEdit must be provided',
+        );
 
   @override
   State<DiaryWriteScreen> createState() => _DiaryWriteScreenState();
@@ -54,7 +61,7 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
     } else if (widget.movie != null) {
       // 작성 모드
       _currentMovie = widget.movie!;
-      print('DEBUG: Movie Genres: ${_currentMovie.genres}');
+      debugPrint('DEBUG: Movie Genres: ${_currentMovie.genres}');
       _titleController.text = _currentMovie.title;
     }
   }
@@ -82,23 +89,7 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
       initialDate: _watchedAt,
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
-      locale: const Locale('ko', 'KR'), // Force Korean
-      builder: (context, child) {
-        return Theme(
-          data: ThemeData.dark().copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: Color(0xFFE50914), // Red for emphasis
-              onPrimary: Colors.white,
-              surface: Color(0xFF1C1C1E),
-              onSurface: Colors.white,
-            ),
-            dialogTheme: const DialogThemeData(
-              backgroundColor: Color(0xFF1C1C1E),
-            ),
-          ),
-          child: child!,
-        );
-      },
+      locale: const Locale('ko', 'KR'),
     );
     if (picked != null && picked != _watchedAt) {
       setState(() {
@@ -110,25 +101,21 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.entryToEdit != null;
-    final appBarTitle = isEditing
-        ? '${_currentMovie.title} 다이어리 수정'
-        : '${_currentMovie.title} 다이어리 작성';
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1C1C1E),
-      resizeToAvoidBottomInset:
-          true, // Allow keyboard to push up inputs but maybe not buttons if they are fixed. Fixed buttons often hide behind keyboard. We'll see.
-      // Usually resizing body works well.
+      backgroundColor: kSurface,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1C1C1E),
-        elevation: 0,
-        foregroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: Text(
-          appBarTitle,
+          isEditing ? '다이어리 수정' : '다이어리 작성',
           style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.normal,
+            fontFamily: kHeadlineFont,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
           ),
         ),
         centerTitle: true,
@@ -137,59 +124,64 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
         children: [
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20.0,
-                vertical: 8.0,
-              ),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 2. Movie Info (Poster + Title/Director) - Dark Background
+                  // ── 영화 정보 카드 ───────────────────
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2C2C2E),
-                      borderRadius: BorderRadius.circular(12),
+                      color: kSurfaceLowest,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: kSurfaceDim.withValues(alpha: 0.25),
+                          blurRadius: 8,
+                          offset: const Offset(2, 2),
+                        ),
+                        const BoxShadow(
+                          color: Colors.white,
+                          blurRadius: 6,
+                          offset: Offset(-2, -2),
+                        ),
+                      ],
                     ),
                     child: Row(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.center, // Vertically centered
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child:
-                              (_currentMovie.posterUrl != null &&
+                          borderRadius: BorderRadius.circular(8),
+                          child: (_currentMovie.posterUrl != null &&
                                   _currentMovie.posterUrl!.isNotEmpty)
-                              ? Image.network(
-                                  _currentMovie.posterUrl!,
-                                  width: 50,
-                                  height: 75,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      Container(
-                                        width: 50,
-                                        height: 75,
-                                        color: Colors.grey[800],
-                                        child: const Icon(
-                                          Icons.movie,
-                                          color: Colors.white54,
-                                          size: 20,
-                                        ),
+                              ? (widget.heroTag != null
+                                  ? Hero(
+                                      tag: widget.heroTag!,
+                                      child: CachedNetworkImage(
+                                        imageUrl: _currentMovie.posterUrl!,
+                                        width: 56,
+                                        height: 80,
+                                        fit: BoxFit.cover,
+                                        placeholder: (_, __) =>
+                                            _miniPoster(),
+                                        errorWidget: (_, __, ___) =>
+                                            _miniPoster(),
                                       ),
-                                )
-                              : Container(
-                                  width: 50,
-                                  height: 75,
-                                  color: Colors.grey[800],
-                                  child: const Icon(
-                                    Icons.movie,
-                                    color: Colors.white54,
-                                    size: 20,
-                                  ),
-                                ),
+                                    )
+                                  : CachedNetworkImage(
+                                      imageUrl: _currentMovie.posterUrl!,
+                                      width: 56,
+                                      height: 80,
+                                      fit: BoxFit.cover,
+                                      placeholder: (_, __) =>
+                                          _miniPoster(),
+                                      errorWidget: (_, __, ___) =>
+                                          _miniPoster(),
+                                    ))
+                              : _miniPoster(),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -197,20 +189,25 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
                               Text(
                                 _currentMovie.title,
                                 style: const TextStyle(
+                                  fontFamily: kHeadlineFont,
                                   fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  color: kOnSurface,
                                 ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(height: 2),
+                              const SizedBox(height: 3),
                               Text(
-                                '${_currentMovie.releaseDate.split("-")[0]} / ${_currentMovie.director}',
+                                '${_currentMovie.releaseDate.split("-")[0]} · ${_currentMovie.director}',
                                 style: TextStyle(
+                                  fontFamily: kBodyFont,
                                   fontSize: 12,
-                                  color: Colors.grey[400],
+                                  color: kOnSurfaceVariant
+                                      .withValues(alpha: 0.7),
                                 ),
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 6),
                               _buildGenreChips(context),
                             ],
                           ),
@@ -218,65 +215,79 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 20),
 
-                  // 3. Rating (Star Indicator + Slider)
+                  // ── 평점 슬라이더 ────────────────────
                   _buildLabel('평점'),
-                  const SizedBox(height: 2),
-                  Center(
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    decoration: BoxDecoration(
+                      color: kSurfaceLowest,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: kSurfaceDim.withValues(alpha: 0.2),
+                          blurRadius: 8,
+                          offset: const Offset(2, 2),
+                        ),
+                        const BoxShadow(
+                          color: Colors.white,
+                          blurRadius: 6,
+                          offset: Offset(-2, -2),
+                        ),
+                      ],
+                    ),
                     child: Column(
                       children: [
-                        Text(
-                          _rating.toStringAsFixed(1),
-                          style: const TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        _buildStarRating(_rating),
-                        const SizedBox(height: 4),
-                        SliderTheme(
-                          data: SliderTheme.of(context).copyWith(
-                            activeTrackColor: Colors.white,
-                            inactiveTrackColor: Colors.grey[800],
-                            thumbColor: Colors.white,
-                            overlayColor: Colors.white.withAlpha(32),
-                            activeTickMarkColor: Colors.transparent,
-                            inactiveTickMarkColor: Colors.transparent,
-                            trackHeight: 4.0,
-                            thumbShape: const RoundSliderThumbShape(
-                              enabledThumbRadius: 8.0,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(
+                              _rating.toStringAsFixed(1),
+                              style: const TextStyle(
+                                fontFamily: kHeadlineFont,
+                                fontSize: 36,
+                                fontWeight: FontWeight.w800,
+                                color: kPrimary,
+                              ),
                             ),
-                          ),
-                          child: Slider(
-                            value: _rating,
-                            min: 0,
-                            max: 10,
-                            divisions: 20,
-                            onChanged: (val) {
-                              setState(() {
-                                _rating = val;
-                              });
-                            },
-                          ),
+                            const Text(
+                              ' / 10',
+                              style: TextStyle(
+                                fontFamily: kBodyFont,
+                                fontSize: 14,
+                                color: kOnSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        _buildStarRating(_rating),
+                        Slider(
+                          value: _rating,
+                          min: 0,
+                          max: 10,
+                          divisions: 20,
+                          onChanged: (val) => setState(() => _rating = val),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
 
-                  // 3.5. Diary Title Input
+                  // ── 제목 ─────────────────────────────
                   _buildLabel('제목'),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 8),
                   _buildTextField(
                     controller: _titleController,
-                    hintText: '제목을 입력해주세요.',
+                    hintText: '다이어리 제목을 입력해주세요.',
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
 
-                  // 4. Date & Location (Dark Inputs)
+                  // ── 관람일 + 장소 (2열) ──────────────
                   Row(
                     children: [
                       Expanded(
@@ -284,34 +295,46 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _buildLabel('관람일'),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 8),
                             GestureDetector(
                               onTap: () => _selectDate(context),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 12,
+                                  horizontal: 14,
+                                  vertical: 14,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF2C2C2E), // Dark Fill
-                                  borderRadius: BorderRadius.circular(12),
+                                  color: kSurfaceHigh,
+                                  borderRadius: BorderRadius.circular(14),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x0D000000),
+                                      blurRadius: 4,
+                                      offset: Offset(2, 2),
+                                    ),
+                                    BoxShadow(
+                                      color: Colors.white,
+                                      blurRadius: 4,
+                                      offset: Offset(-2, -2),
+                                    ),
+                                  ],
                                 ),
                                 child: Row(
                                   children: [
+                                    const Icon(
+                                      Icons.calendar_today_rounded,
+                                      size: 16,
+                                      color: kPrimary,
+                                    ),
+                                    const SizedBox(width: 8),
                                     Text(
-                                      DateFormat(
-                                        'yyyy-MM-dd',
-                                      ).format(_watchedAt),
+                                      DateFormat('yyyy-MM-dd')
+                                          .format(_watchedAt),
                                       style: const TextStyle(
-                                        color: Colors.white,
+                                        fontFamily: kBodyFont,
+                                        color: kOnSurface,
                                         fontSize: 14,
                                       ),
-                                    ),
-                                    const Spacer(),
-                                    const Icon(
-                                      Icons.calendar_today,
-                                      size: 16,
-                                      color: Colors.white,
                                     ),
                                   ],
                                 ),
@@ -320,40 +343,20 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _buildLabel('관람 장소'),
-                            const SizedBox(height: 2),
-                            TextField(
+                            const SizedBox(height: 8),
+                            _buildTextField(
                               controller: _locationController,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                              ),
-                              decoration: InputDecoration(
-                                hintText: '장소 입력',
-                                hintStyle: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 14,
-                                ),
-                                filled: true,
-                                fillColor: const Color(0xFF2C2C2E),
-                                suffixIcon: const Icon(
-                                  Icons.location_on,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 12,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
+                              hintText: '장소 입력',
+                              suffixIcon: const Icon(
+                                Icons.location_on_outlined,
+                                color: kPrimary,
+                                size: 18,
                               ),
                             ),
                           ],
@@ -361,102 +364,140 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
 
-                  // 5. Content (Review) - Dark Input
+                  // ── 내용 ─────────────────────────────
                   _buildLabel('내용'),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 8),
                   _buildTextField(
                     controller: _contentController,
-                    hintText: '리뷰를 작성해주세요.',
-                    maxLines: 8,
+                    hintText: '영화 감상을 자유롭게 작성해주세요.',
+                    maxLines: 7,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
 
-                  // 6. Photo Section (Carousel)
+                  // ── 사진 추가 ─────────────────────────
                   _buildLabel('사진 추가'),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 8),
                   _buildPhotoSection(),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
 
-                  // 7. Spoiler Checkbox
+                  // ── 스포일러 토글 ─────────────────────
                   GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _isSpoiler = !_isSpoiler;
-                      });
-                    },
-                    child: Row(
-                      children: [
-                        Checkbox(
-                          value: _isSpoiler,
-                          activeColor: Colors.white,
-                          checkColor: Colors.black,
-                          side: BorderSide(color: Colors.grey[500]!),
-                          onChanged: (val) {
-                            setState(() {
-                              _isSpoiler = val ?? false;
-                            });
-                          },
+                    onTap: () =>
+                        setState(() => _isSpoiler = !_isSpoiler),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: _isSpoiler
+                            ? kPrimary.withValues(alpha: 0.08)
+                            : kSurfaceHigh,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: _isSpoiler
+                              ? kPrimary.withValues(alpha: 0.2)
+                              : Colors.transparent,
                         ),
-                        const Text(
-                          '스포일러 포함',
-                          style: TextStyle(fontSize: 14, color: Colors.white),
-                        ),
-                      ],
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _isSpoiler
+                                ? Icons.warning_amber_rounded
+                                : Icons.warning_amber_outlined,
+                            color: _isSpoiler ? kPrimary : kOnSurfaceVariant,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            '스포일러 포함',
+                            style: TextStyle(
+                              fontFamily: kBodyFont,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: _isSpoiler ? kPrimary : kOnSurface,
+                            ),
+                          ),
+                          const Spacer(),
+                          Switch(
+                            value: _isSpoiler,
+                            onChanged: (val) =>
+                                setState(() => _isSpoiler = val),
+                            activeThumbColor: kPrimary,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 12), // Space before bottom buttons
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
           ),
 
-          // 8. Fixed Bottom Buttons
+          // ── 고정 하단 버튼 ───────────────────────
           Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              color: Color(0xFF1C1C1E),
-              border: Border(top: BorderSide(color: Color(0xFF2C2C2E))),
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 12,
+              bottom: MediaQuery.of(context).padding.bottom + 12,
+            ),
+            decoration: BoxDecoration(
+              color: kSurfaceLowest,
+              border: Border(
+                top: BorderSide(
+                    color: kOutlineVariant.withValues(alpha: 0.2)),
+              ),
             ),
             child: _isLoading
                 ? const Center(
-                    child: CircularProgressIndicator(color: Color(0xFFE50914)),
+                    child: CircularProgressIndicator(color: kPrimary),
                   )
-                : (isEditing
-                      ? Row(
-                          children: [
-                            Expanded(
-                              child: _buildButton(
-                                text: '수정하기',
-                                onPressed: _saveDiary,
-                                backgroundColor: const Color(0xFFE50914), // Red
-                                textColor: Colors.white,
-                              ),
+                : isEditing
+                    ? Row(
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: _buildActionButton(
+                              text: '수정하기',
+                              onPressed: _saveDiary,
+                              isPrimary: true,
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _buildButton(
-                                text: '삭제하기',
-                                onPressed: _deleteDiary,
-                                backgroundColor: Colors.grey[800]!,
-                                textColor: Colors.white,
-                              ),
-                            ),
-                          ],
-                        )
-                      : SizedBox(
-                          width: double.infinity,
-                          child: _buildButton(
-                            text: '저장하기',
-                            onPressed: _saveDiary,
-                            backgroundColor: const Color(0xFFE50914), // Red
-                            textColor: Colors.white,
                           ),
-                        )),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            flex: 2,
+                            child: _buildActionButton(
+                              text: '삭제',
+                              onPressed: _deleteDiary,
+                              isPrimary: false,
+                            ),
+                          ),
+                        ],
+                      )
+                    : _buildActionButton(
+                        text: '저장하기',
+                        onPressed: _saveDiary,
+                        isPrimary: true,
+                      ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _miniPoster() {
+    return Container(
+      width: 56,
+      height: 80,
+      decoration: BoxDecoration(
+        color: kSurfaceHigh,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Icon(Icons.movie_outlined,
+          color: kOnSurfaceVariant, size: 24),
     );
   }
 
@@ -464,9 +505,10 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
     return Text(
       text,
       style: const TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.bold,
-        color: Colors.white,
+        fontFamily: kBodyFont,
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: kOnSurfaceVariant,
       ),
     );
   }
@@ -475,71 +517,143 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
     required TextEditingController controller,
     String? hintText,
     int maxLines = 1,
+    Widget? suffixIcon,
   }) {
-    return TextField(
-      controller: controller,
-      maxLines: maxLines,
-      style: const TextStyle(color: Colors.white, fontSize: 14),
-      decoration: InputDecoration(
-        hintText: hintText,
-        hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
-        filled: true,
-        fillColor: const Color(0xFF2C2C2E),
-        contentPadding: const EdgeInsets.all(12),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+    return Container(
+      decoration: BoxDecoration(
+        color: kSurfaceHigh,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D000000),
+            blurRadius: 4,
+            offset: Offset(2, 2),
+          ),
+          BoxShadow(
+            color: Colors.white,
+            blurRadius: 4,
+            offset: Offset(-2, -2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        maxLines: maxLines,
+        style: const TextStyle(
+          fontFamily: kBodyFont,
+          color: kOnSurface,
+          fontSize: 14,
+        ),
+        cursorColor: kPrimary,
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: TextStyle(
+            color: kOnSurfaceVariant.withValues(alpha: 0.5),
+            fontSize: 14,
+          ),
+          suffixIcon: suffixIcon,
+          filled: true,
+          fillColor: Colors.transparent,
+          contentPadding: const EdgeInsets.all(14),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(
+              color: kPrimary.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildButton({
+  Widget _buildActionButton({
     required String text,
     required VoidCallback onPressed,
-    required Color backgroundColor,
-    required Color textColor,
+    required bool isPrimary,
   }) {
-    return ElevatedButton(
-      onPressed: _isLoading ? null : onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: backgroundColor,
-        foregroundColor: textColor,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-      child: _isLoading
-          ? SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: textColor,
+    if (isPrimary) {
+      return SizedBox(
+        width: double.infinity,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: kPrimaryGradient,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: kPrimary.withValues(alpha: 0.25),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
-            )
-          : Text(
-              text,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ],
+          ),
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : onPressed,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
             ),
-    );
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontFamily: kHeadlineFont,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+      );
+    } else {
+      return SizedBox(
+        width: double.infinity,
+        child: OutlinedButton(
+          onPressed: _isLoading ? null : onPressed,
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            side: BorderSide(color: kError.withValues(alpha: 0.5)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
+          child: Text(
+            text,
+            style: const TextStyle(
+              fontFamily: kHeadlineFont,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: kError,
+            ),
+          ),
+        ),
+      );
+    }
   }
 
   Widget _buildStarRating(double rating) {
-    // rating is 0-10. Convert to 0-5 stars.
-    double starValue = rating / 2;
-    int fullStars = starValue.floor();
-    bool hasHalfStar = (starValue - fullStars) >= 0.5;
+    final starValue = rating / 2;
+    final fullStars = starValue.floor();
+    final hasHalf = (starValue - fullStars) >= 0.5;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: List.generate(5, (index) {
-        if (index < fullStars) {
-          return const Icon(Icons.star, color: Colors.white, size: 28);
-        } else if (index == fullStars && hasHalfStar) {
-          return const Icon(Icons.star_half, color: Colors.white, size: 28);
+      children: List.generate(5, (i) {
+        if (i < fullStars) {
+          return const Icon(Icons.star_rounded, color: kPrimary, size: 28);
+        } else if (i == fullStars && hasHalf) {
+          return const Icon(Icons.star_half_rounded, color: kPrimary, size: 28);
         } else {
-          return Icon(Icons.star_border, color: Colors.grey[800], size: 28);
+          return const Icon(Icons.star_outline_rounded,
+              color: kSurfaceDim, size: 28);
         }
       }),
     );
@@ -556,26 +670,30 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
     if (_currentMovie.genres.isEmpty) {
       return Text(
         '장르 정보 없음',
-        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+        style: TextStyle(
+          fontFamily: kBodyFont,
+          color: kOnSurfaceVariant.withValues(alpha: 0.6),
+          fontSize: 12,
+        ),
       );
     }
-
     return Wrap(
-      spacing: 8.0,
-      runSpacing: 4.0,
+      spacing: 6,
+      runSpacing: 4,
       children: _currentMovie.genres.map((genre) {
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
-            color: const Color(0xFFE50914), // Red
-            borderRadius: BorderRadius.circular(4),
+            color: kSecondaryContainer,
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Text(
             genre,
             style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
+              fontFamily: kBodyFont,
+              color: kOnSecondaryContainer,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
             ),
           ),
         );
@@ -589,64 +707,60 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
-          // Add Button
+          // 사진 추가 버튼
           GestureDetector(
             onTap: _pickImage,
             child: Container(
               width: 80,
               height: 100,
               decoration: BoxDecoration(
-                color: const Color(0xFF2C2C2E),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey[800]!),
+                color: kSurfaceHigh,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: kOutlineVariant.withValues(alpha: 0.4),
+                  style: BorderStyle.solid,
+                ),
               ),
-              child: const Icon(Icons.add_a_photo, color: Colors.white70),
+              child: const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add_photo_alternate_outlined,
+                      color: kPrimary, size: 26),
+                  SizedBox(height: 4),
+                  Text(
+                    '사진 추가',
+                    style: TextStyle(
+                      fontFamily: kBodyFont,
+                      fontSize: 10,
+                      color: kPrimary,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(width: 8),
-          // Existing Photos
+          // 기존 사진
           ..._existingPhotoUrls.asMap().entries.map((entry) {
-            int idx = entry.key;
-            String url = entry.value;
+            final idx = entry.key;
+            final url = entry.value;
             return Padding(
               padding: const EdgeInsets.only(right: 8.0),
               child: Stack(
                 children: [
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
                     child: Image.network(
                       ApiService.buildImageUrl(url) ?? '',
                       width: 80,
                       height: 100,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
+                      errorBuilder: (_, __, ___) => Container(
                         width: 80,
                         height: 100,
-                        color: Colors.grey[800],
-                        child: SingleChildScrollView(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                ApiService.buildImageUrl(url) ?? 'Null URL',
-                                style: const TextStyle(
-                                  fontSize: 8,
-                                  color: Colors.white,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                error.toString(),
-                                style: const TextStyle(
-                                  fontSize: 8,
-                                  color: Colors.red,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        ),
+                        color: kSurfaceHigh,
+                        child: const Icon(Icons.broken_image_outlined,
+                            color: kOnSurfaceVariant),
                       ),
                     ),
                   ),
@@ -654,22 +768,16 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
                     top: 4,
                     right: 4,
                     child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _existingPhotoUrls.removeAt(idx);
-                        });
-                      },
+                      onTap: () => setState(
+                          () => _existingPhotoUrls.removeAt(idx)),
                       child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(
-                          color: Colors.black54,
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: kOnSurface.withValues(alpha: 0.7),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
-                          Icons.close,
-                          color: Colors.white,
-                          size: 16,
-                        ),
+                        child: const Icon(Icons.close,
+                            color: Colors.white, size: 14),
                       ),
                     ),
                   ),
@@ -677,50 +785,36 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
               ),
             );
           }),
-          // New picked images
+          // 새로 선택한 이미지
           ..._pickedImages.asMap().entries.map((entry) {
-            int idx = entry.key;
-            XFile file = entry.value;
+            final idx = entry.key;
+            final file = entry.value;
             return Padding(
               padding: const EdgeInsets.only(right: 8.0),
               child: Stack(
                 children: [
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
                     child: kIsWeb
-                        ? Image.network(
-                            file.path,
-                            width: 80,
-                            height: 100,
-                            fit: BoxFit.cover,
-                          )
-                        : Image.file(
-                            File(file.path),
-                            width: 80,
-                            height: 100,
-                            fit: BoxFit.cover,
-                          ),
+                        ? Image.network(file.path,
+                            width: 80, height: 100, fit: BoxFit.cover)
+                        : Image.file(File(file.path),
+                            width: 80, height: 100, fit: BoxFit.cover),
                   ),
                   Positioned(
                     top: 4,
                     right: 4,
                     child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _pickedImages.removeAt(idx);
-                        });
-                      },
+                      onTap: () =>
+                          setState(() => _pickedImages.removeAt(idx)),
                       child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(
-                          color: Colors.black54,
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: kOnSurface.withValues(alpha: 0.7),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
-                          Icons.close,
-                          color: Colors.white,
-                          size: 16,
-                        ),
+                        child: const Icon(Icons.close,
+                            color: Colors.white, size: 14),
                       ),
                     ),
                   ),
@@ -836,20 +930,35 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
     final bool? confirmed = await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1C1C1E),
-        title: const Text('삭제 확인', style: TextStyle(color: Colors.white)),
+        backgroundColor: kSurfaceLowest,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          '삭제 확인',
+          style: TextStyle(
+            fontFamily: kHeadlineFont,
+            fontWeight: FontWeight.w700,
+            color: kOnSurface,
+          ),
+        ),
         content: const Text(
           '정말로 이 다이어리를 삭제하시겠습니까?',
-          style: TextStyle(color: Colors.white70),
+          style: TextStyle(
+            fontFamily: kBodyFont,
+            color: kOnSurfaceVariant,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text('취소', style: TextStyle(color: Colors.grey[400])),
+            child: const Text('취소',
+                style: TextStyle(color: kOnSurfaceVariant)),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('삭제', style: TextStyle(color: Colors.red)),
+            child: const Text('삭제',
+                style: TextStyle(
+                    color: kError, fontWeight: FontWeight.w700)),
           ),
         ],
       ),

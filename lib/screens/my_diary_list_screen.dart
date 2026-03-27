@@ -46,6 +46,7 @@ class _MyDiaryListScreenState extends State<MyDiaryListScreen> {
   }
 
   Future<void> _loadPosts() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -53,12 +54,14 @@ class _MyDiaryListScreenState extends State<MyDiaryListScreen> {
 
     try {
       final posts = await ApiService.getMyPosts();
+      if (!mounted) return;
       setState(() {
         _allPosts = posts;
         _isLoading = false;
         _applyFilters();
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = '데이터를 불러오는데 실패했습니다.';
         _isLoading = false;
@@ -204,12 +207,7 @@ class _MyDiaryListScreenState extends State<MyDiaryListScreen> {
     final availableGenres = _getAvailableGenres();
 
     return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('내 다이어리', style: TextStyle(color: Colors.white)),
-      ),
+      backgroundColor: Colors.black, // Background color matches old theme for now, but usually it should be kSurface
       body: Column(
         children: [
           // Search Area

@@ -4,6 +4,7 @@ import 'package:movie_diary_app/data/home_data.dart';
 import 'package:movie_diary_app/services/api_service.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:movie_diary_app/constants.dart';
 
 class ProfileEditScreen extends StatefulWidget {
   final User user;
@@ -94,11 +95,25 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: kSurface,
       appBar: AppBar(
-        title: const Text('프로필 편집'),
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          color: kOnSurface,
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          '프로필 편집',
+          style: TextStyle(
+            fontFamily: kHeadlineFont,
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+            color: kOnSurface,
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -112,43 +127,66 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                   const Text(
                     '닉네임',
                     style: TextStyle(
+                      fontFamily: kHeadlineFont,
                       fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      color: kOnSurface,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _nicknameController,
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                    decoration: InputDecoration(
-                      hintText: '닉네임을 입력해주세요.',
-                      hintStyle: TextStyle(
-                        color: Colors.grey[600],
+                  Container(
+                    decoration: BoxDecoration(
+                      color: kSurfaceHigh,
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x0D000000),
+                          blurRadius: 4,
+                          offset: Offset(2, 2),
+                        ),
+                        BoxShadow(
+                          color: Colors.white,
+                          blurRadius: 4,
+                          offset: Offset(-2, -2),
+                        ),
+                      ],
+                    ),
+                    child: TextFormField(
+                      controller: _nicknameController,
+                      style: const TextStyle(
+                        fontFamily: kBodyFont,
+                        color: kOnSurface,
                         fontSize: 14,
                       ),
-                      filled: true,
-                      fillColor: const Color(0xFF2C2C2E),
-                      contentPadding: const EdgeInsets.all(12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
+                      cursorColor: kPrimary,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.transparent,
+                        hintText: '닉네임을 입력해주세요.',
+                        hintStyle: TextStyle(
+                          color: kOnSurfaceVariant.withValues(alpha: 0.5),
+                          fontSize: 14,
+                        ),
+                        contentPadding: const EdgeInsets.all(16),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(
+                            color: kPrimary.withValues(alpha: 0.3),
+                            width: 1.5,
+                          ),
+                        ),
                       ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return '닉네임을 입력해주세요.';
+                        }
+                        return null;
+                      },
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return '닉네임을 입력해주세요.';
-                      }
-                      return null;
-                    },
                   ),
                 ],
               ),
@@ -160,9 +198,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                   const Text(
                     '프로필 사진',
                     style: TextStyle(
+                      fontFamily: kHeadlineFont,
                       fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      color: kOnSurface,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -176,8 +215,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                             height: 100,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: const Color(0xFF2C2C2E),
-                              border: Border.all(color: Colors.grey[800]!),
+                              color: kSurfaceHigh,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
                             child: _pickedImage != null
                                 ? ClipOval(
@@ -203,15 +248,15 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                                                   return const Icon(
                                                     Icons.person,
                                                     size: 50,
-                                                    color: Colors.grey,
+                                                    color: kOnSurfaceVariant,
                                                   );
                                                 },
                                           ),
                                         )
                                       : const Icon(
-                                          Icons.add_a_photo,
+                                          Icons.add_a_photo_rounded,
                                           size: 30,
-                                          color: Colors.grey,
+                                          color: kOnSurfaceVariant,
                                         )),
                           ),
                         ),
@@ -223,13 +268,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                             child: GestureDetector(
                               onTap: _deleteImage,
                               child: Container(
-                                padding: const EdgeInsets.all(4),
+                                padding: const EdgeInsets.all(6),
                                 decoration: const BoxDecoration(
-                                  color: Colors.red,
+                                  color: kError,
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(
-                                  Icons.close,
+                                  Icons.close_rounded,
                                   size: 16,
                                   color: Colors.white,
                                 ),
@@ -244,25 +289,47 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _saveProfile,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE50914),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                height: 52,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: kPrimaryGradient,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: kPrimary.withValues(alpha: 0.25),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _saveProfile,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            '저장',
+                            style: TextStyle(
+                              fontFamily: kHeadlineFont,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
                           ),
-                        )
-                      : const Text(
-                          '저장',
-                          style: TextStyle(fontSize: 16, color: Colors.white),
-                        ),
+                  ),
                 ),
               ),
             ],

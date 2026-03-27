@@ -100,29 +100,41 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          backgroundColor: const Color(0xFF2C2C2C),
-          title: const Text(
-            '비밀번호 변경 완료',
-            style: TextStyle(color: Colors.white),
+      builder: (context) => AlertDialog(
+        backgroundColor: kSurfaceLowest,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          '비밀번호 변경 완료',
+          style: TextStyle(
+            fontFamily: kHeadlineFont,
+            fontWeight: FontWeight.w700,
+            color: kOnSurface,
           ),
-          content: const Text(
-            '비밀번호가 성공적으로 변경되었습니다.\n새로운 비밀번호로 로그인해주세요.',
-            style: TextStyle(color: Colors.white70),
+        ),
+        content: const Text(
+          '비밀번호가 성공적으로 변경되었습니다.\n새로운 비밀번호로 로그인해주세요.',
+          style: TextStyle(
+            fontFamily: kBodyFont,
+            color: kOnSurfaceVariant,
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Close dialog
-                Navigator.of(context).pop(); // Back to Login
-              },
-              child: const Text(
-                '확인',
-                style: TextStyle(color: kPrimaryRedColor),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Close dialog
+              Navigator.of(context).pop(); // Back to Login
+            },
+            child: const Text(
+              '확인',
+              style: TextStyle(
+                color: kPrimary,
+                fontWeight: FontWeight.w700,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
       );
     } catch (e) {
       final msg = e.toString().replaceAll('Exception: ', '');
@@ -140,11 +152,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: kSurface,
       appBar: AppBar(
-        title: const Text('비밀번호 찾기'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          '비밀번호 찾기',
+          style: TextStyle(
+            fontFamily: kHeadlineFont,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        centerTitle: true,
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -153,13 +175,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (_currentStep == 0) _buildStep1() else _buildStep2(),
-
               if (_errorMessage.isNotEmpty) ...[
                 const SizedBox(height: 20),
                 Text(
                   _errorMessage,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.redAccent),
+                  style: const TextStyle(color: kError),
                 ),
               ],
             ],
@@ -175,9 +196,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         const Text(
           '아이디를 입력해주세요.',
           style: TextStyle(
-            color: Colors.white,
+            fontFamily: kHeadlineFont,
+            color: kOnSurface,
             fontSize: 18,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(height: 30),
@@ -185,21 +207,40 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         const SizedBox(height: 30),
         SizedBox(
           width: double.infinity,
-          height: 50,
-          child: ElevatedButton(
-            onPressed: _isLoading ? null : _fetchSecurityQuestion,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kPrimaryRedColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+          height: 52,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: kPrimaryGradient,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: kPrimary.withValues(alpha: 0.25),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            child: _isLoading
-                ? const CircularProgressIndicator(color: Colors.white)
-                : const Text(
-                    '다음',
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _fetchSecurityQuestion,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: _isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text(
+                      '다음',
+                      style: TextStyle(
+                        fontFamily: kHeadlineFont,
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+            ),
           ),
         ),
       ],
@@ -213,24 +254,26 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         Text(
           'Q. $_securityQuestion',
           style: const TextStyle(
-            color: kAccentGoldColor,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+            fontFamily: kBodyFont,
+            color: kPrimary,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 20),
         _buildTextField(_answerController, '답변', Icons.question_answer),
         const SizedBox(height: 20),
 
-        const Divider(color: Colors.grey),
+        Divider(color: kOutlineVariant.withValues(alpha: 0.4)),
         const SizedBox(height: 20),
 
         const Text(
           '새로운 비밀번호 설정',
           style: TextStyle(
-            color: Colors.white,
+            fontFamily: kHeadlineFont,
+            color: kOnSurface,
             fontSize: 16,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(height: 10),
@@ -251,21 +294,40 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         const SizedBox(height: 30),
         SizedBox(
           width: double.infinity,
-          height: 50,
-          child: ElevatedButton(
-            onPressed: _isLoading ? null : _resetPassword,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kPrimaryRedColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+          height: 52,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: kPrimaryGradient,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: kPrimary.withValues(alpha: 0.25),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            child: _isLoading
-                ? const CircularProgressIndicator(color: Colors.white)
-                : const Text(
-                    '비밀번호 변경',
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _resetPassword,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: _isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text(
+                      '비밀번호 변경',
+                      style: TextStyle(
+                        fontFamily: kHeadlineFont,
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+            ),
           ),
         ),
       ],
@@ -278,23 +340,53 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     IconData icon, {
     bool isPassword = false,
   }) {
-    return TextField(
-      controller: controller,
-      obscureText: isPassword,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: const Color(0xFF1E1E1E),
-        hintText: hint,
-        hintStyle: const TextStyle(color: Colors.grey),
-        prefixIcon: Icon(icon, color: Colors.grey),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
+    return Container(
+      decoration: BoxDecoration(
+        color: kSurfaceHigh,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D000000),
+            blurRadius: 4,
+            offset: Offset(2, 2),
+          ),
+          BoxShadow(
+            color: Colors.white,
+            blurRadius: 4,
+            offset: Offset(-2, -2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: isPassword,
+        style: const TextStyle(
+          fontFamily: kBodyFont,
+          color: kOnSurface,
+          fontSize: 14,
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: kAccentGoldColor),
+        cursorColor: kPrimary,
+        decoration: InputDecoration(
+          filled: true,
+          fillColor: Colors.transparent,
+          hintText: hint,
+          hintStyle: TextStyle(
+            color: kOnSurfaceVariant.withValues(alpha: 0.5),
+          ),
+          prefixIcon: Icon(icon, color: kOnSurfaceVariant, size: 20),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(
+              color: kPrimary.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+              vertical: 16, horizontal: 16),
         ),
       ),
     );

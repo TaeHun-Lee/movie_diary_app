@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:movie_diary_app/component/movie_detail_modal.dart';
+import 'package:movie_diary_app/constants.dart';
 import 'package:movie_diary_app/data/movie.dart';
+import 'package:movie_diary_app/screens/movie_detail_screen.dart';
 import 'package:movie_diary_app/services/api_service.dart';
 
 class MovieSearchScreen extends StatefulWidget {
@@ -21,7 +22,6 @@ class MovieSearchScreenState extends State<MovieSearchScreen> {
   bool _searchPerformed = false;
   String? _errorMessage;
   int _startCount = 0;
-  final int _limit = 100;
 
   @override
   void initState() {
@@ -58,47 +58,38 @@ class MovieSearchScreenState extends State<MovieSearchScreen> {
   }
 
   Future<void> _searchMovies() async {
-    if (_searchController.text.isEmpty) {
-      return;
-    }
+    final query = _searchController.text.trim();
+    if (query.isEmpty) return;
+
     setState(() {
       _isLoading = true;
       _searchPerformed = true;
       _errorMessage = null;
       _startCount = 0;
-      _movies = []; // Clear previous results
+      _movies = [];
     });
 
     try {
-      final movies = await ApiService.searchMovies(
-        _searchController.text,
-        startCount: 0,
-      );
+      final movies =
+          await ApiService.searchMovies(query, startCount: 0);
       setState(() {
         _movies = movies;
         _startCount = movies.length;
       });
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('영화 검색에 실패했습니다.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('영화 검색에 실패했습니다.')),
+        );
       }
-      setState(() {
-        _errorMessage = '영화 검색에 실패했습니다.';
-      });
+      setState(() => _errorMessage = '영화 검색에 실패했습니다.');
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
   Future<void> _loadMoreMovies() async {
-    setState(() {
-      _isLoadingMore = true;
-    });
-
+    setState(() => _isLoadingMore = true);
     try {
       final movies = await ApiService.searchMovies(
         _searchController.text,
@@ -110,128 +101,270 @@ class MovieSearchScreenState extends State<MovieSearchScreen> {
           _startCount += movies.length;
         });
       }
-    } catch (e) {
-      // Quietly fail or show small indicator? quiet for now.
+    } catch (_) {
+      // 조용히 실패
     } finally {
-      setState(() {
-        _isLoadingMore = false;
-      });
+      setState(() => _isLoadingMore = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black, // Dark background
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            if (widget.onBack != null) {
-              widget.onBack!();
-            } else {
-              Navigator.pop(context);
-            }
-          },
-        ),
-        title: const Text(
-          '영화 검색',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      backgroundColor: kSurface,
+      body: SafeArea(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Custom Search Bar
-            Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFF2C2C2C), // Dark Grey
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: TextField(
-                controller: _searchController,
-                style: const TextStyle(color: Colors.white),
-                cursorColor: Colors.white,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors
-                      .transparent, // Ensure TextField itself is transparent
-                  hintText: '영화 제목...',
-                  hintStyle: const TextStyle(color: Colors.grey),
-                  prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                  suffixIcon:
-                      _searchController.text.isNotEmpty ||
-                          _searchPerformed // Show clear button if text exists or was searched
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, color: Colors.grey),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() {
-                              _movies = [];
-                              _searchPerformed = false;
-                            });
-                          },
-                        )
-                      : null,
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none, // Remove global borders
-                  focusedBorder: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                onSubmitted: (_) => _searchMovies(),
-                textInputAction: TextInputAction.search,
+            // ── 헤더 ──────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '시네마 탐색',
+                    style: TextStyle(
+                      fontFamily: kHeadlineFont,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w800,
+                      color: kOnSurface,
+                      height: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // ── 검색 바 (Neuromorphic) ─────────
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: kSurfaceHigh,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x0D000000),
+                                blurRadius: 5,
+                                offset: Offset(2, 2),
+                              ),
+                              BoxShadow(
+                                color: Colors.white,
+                                blurRadius: 5,
+                                offset: Offset(-2, -2),
+                              ),
+                            ],
+                          ),
+                          child: TextField(
+                            controller: _searchController,
+                            style: const TextStyle(
+                              fontFamily: kBodyFont,
+                              color: kOnSurface,
+                              fontSize: 15,
+                            ),
+                            cursorColor: kPrimary,
+                            textInputAction: TextInputAction.search,
+                            decoration: InputDecoration(
+                              hintText: '영화 제목으로 검색...',
+                              hintStyle: TextStyle(
+                                color:
+                                    kOnSurfaceVariant.withValues(alpha: 0.55),
+                                fontSize: 14,
+                              ),
+                              prefixIcon: const Icon(
+                                Icons.search_rounded,
+                                color: kOnSurfaceVariant,
+                                size: 22,
+                              ),
+                              suffixIcon:
+                                  _searchController.text.isNotEmpty
+                                      ? IconButton(
+                                          icon: const Icon(Icons.clear_rounded,
+                                              color: kOnSurfaceVariant,
+                                              size: 18),
+                                          onPressed: () {
+                                            _searchController.clear();
+                                            setState(() {
+                                              _movies = [];
+                                              _searchPerformed = false;
+                                            });
+                                          },
+                                        )
+                                      : null,
+                              filled: true,
+                              fillColor: Colors.transparent,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide(
+                                  color: kPrimary.withValues(alpha: 0.3),
+                                  width: 1.5,
+                                ),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 16, horizontal: 20),
+                            ),
+                            onSubmitted: (_) => _searchMovies(),
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+
+                      // 검색 버튼
+                      GestureDetector(
+                        onTap: _searchMovies,
+                        child: Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            gradient: kPrimaryGradient,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: kPrimary.withValues(alpha: 0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.search_rounded,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
-            // Search Results
+            // ── 결과 영역 ──────────────────────────
             Expanded(
-              child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(color: Colors.white),
-                    )
-                  : _errorMessage != null
-                  ? Center(
-                      child: Text(
-                        _errorMessage!,
-                        style: const TextStyle(color: Colors.redAccent),
-                      ),
-                    )
-                  : _searchPerformed && _movies.isEmpty
-                  ? const Center(
-                      child: Text(
-                        '검색 결과가 없습니다.',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    )
-                  : ListView.separated(
-                      controller: _scrollController,
-                      itemCount: _movies.length + (_isLoadingMore ? 1 : 0),
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        if (index == _movies.length) {
-                          return const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(8.0),
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                              ),
-                            ),
-                          );
-                        }
-                        final movie = _movies[index];
-                        return _buildMovieCard(movie);
-                      },
-                    ),
+              child: _buildBody(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: kPrimary),
+      );
+    }
+    if (_errorMessage != null) {
+      return Center(
+        child: Text(
+          _errorMessage!,
+          style: const TextStyle(color: kError),
+        ),
+      );
+    }
+    if (!_searchPerformed) {
+      return _buildInitialState();
+    }
+    if (_movies.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.search_off_rounded,
+                size: 48, color: kOnSurfaceVariant),
+            const SizedBox(height: 12),
+            Text(
+              '"${_searchController.text}" 검색 결과가 없습니다.',
+              style: const TextStyle(
+                fontFamily: kBodyFont,
+                fontSize: 14,
+                color: kOnSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.separated(
+      controller: _scrollController,
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
+      itemCount: _movies.length + (_isLoadingMore ? 1 : 0),
+      separatorBuilder: (_, __) => const SizedBox(height: 16),
+      itemBuilder: (context, index) {
+        if (index == _movies.length) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: CircularProgressIndicator(color: kPrimary),
+            ),
+          );
+        }
+        return _buildMovieCard(_movies[index]);
+      },
+    );
+  }
+
+  Widget _buildInitialState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: kSurfaceHigh,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: kSurfaceDim.withValues(alpha: 0.4),
+                    blurRadius: 10,
+                    offset: const Offset(3, 3),
+                  ),
+                  const BoxShadow(
+                    color: Colors.white,
+                    blurRadius: 10,
+                    offset: Offset(-3, -3),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.movie_filter_outlined,
+                size: 36,
+                color: kPrimary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              '영화 제목을 검색해보세요',
+              style: TextStyle(
+                fontFamily: kHeadlineFont,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: kOnSurface,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '좋아하는 영화를 찾고\n다이어리를 작성해보세요',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: kBodyFont,
+                fontSize: 13,
+                color: kOnSurfaceVariant.withValues(alpha: 0.7),
+                height: 1.5,
+              ),
             ),
           ],
         ),
@@ -242,120 +375,147 @@ class MovieSearchScreenState extends State<MovieSearchScreen> {
   Widget _buildMovieCard(Movie movie) {
     return GestureDetector(
       onTap: () async {
-        final result = await showMovieDetailModal(context, movie);
-        if (result == true && context.mounted) {
-          // Handle result if needed
-          // Navigator.pop(context, true); // Don't pop if tab based
-        }
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => MovieDetailScreen(movie: movie),
+          ),
+        );
       },
       child: Container(
-        height: 140, // Fixed height for consistency
         decoration: BoxDecoration(
-          color: const Color(0xFF2C2C2C), // Card background
-          borderRadius: BorderRadius.circular(12),
+          color: kSurfaceLowest,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: kSurfaceDim.withValues(alpha: 0.3),
+              blurRadius: 12,
+              offset: const Offset(2, 4),
+            ),
+            const BoxShadow(
+              color: Colors.white,
+              blurRadius: 8,
+              offset: Offset(-2, -2),
+            ),
+          ],
         ),
         child: Row(
           children: [
-            // Movie Poster (Left) with Padding
-            Padding(
-              padding: const EdgeInsets.all(8.0), // Added padding around image
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(
-                  8,
-                ), // Rounded all corners inside padding
-                child: SizedBox(
-                  width: 90, // Slightly smaller to fit padding
-                  height: double.infinity,
-                  child: movie.posterUrl != null
-                      ? Image.network(
-                          movie.posterUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              color: Colors.grey[800],
-                              child: const Icon(
-                                Icons.movie,
-                                color: Colors.white54,
-                              ),
-                            );
-                          },
-                        )
-                      : Container(
-                          color: Colors.grey[800],
-                          child: const Icon(Icons.movie, color: Colors.white54),
-                        ),
-                ),
+            // 포스터
+            ClipRRect(
+              borderRadius: const BorderRadius.horizontal(
+                left: Radius.circular(20),
+              ),
+              child: SizedBox(
+                width: 90,
+                height: 130,
+                child: movie.posterUrl != null
+                    ? Image.network(
+                        movie.posterUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _posterPlaceholder(),
+                      )
+                    : _posterPlaceholder(),
               ),
             ),
 
-            // Movie Info (Right)
+            // 정보
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 16.0,
-                  horizontal: 8.0,
-                ),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Title
+                    // 장르 칩
+                    if (movie.genres.isNotEmpty)
+                      Wrap(
+                        spacing: 4,
+                        runSpacing: 4,
+                        children: movie.genres.take(2).map((g) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: kSecondaryContainer,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              g,
+                              style: const TextStyle(
+                                fontFamily: kBodyFont,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: kOnSecondaryContainer,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    if (movie.genres.isNotEmpty) const SizedBox(height: 8),
+
+                    // 제목
                     Text(
                       movie.title,
                       style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                        fontFamily: kHeadlineFont,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: kOnSurface,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
 
-                    // Director & Year (Assuming Director + placeholder year if not available)
+                    // 감독
                     Text(
-                      movie
-                          .director, // + ' / 2019' (Year is not in Movie model yet)
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
+                      movie.director,
+                      style: TextStyle(
+                        fontFamily: kBodyFont,
+                        fontSize: 12,
+                        color: kOnSurfaceVariant.withValues(alpha: 0.8),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
 
-                    const SizedBox(height: 12),
-
-                    // Rating (Faked for KMDB as it might not be in search result, using random/placeholder or if API provides it)
-                    // The Movie model does NOT have rating. The design shows "4.8 (Kmdb)".
-                    // Since we don't have rating in Movie model from search, we can either hide it or show a placeholder.
-                    // For now, I'll omit it or show a placeholder if desired.
-                    // Let's check the design. It shows "4.8 (Kmdb)".
-                    // I will check the Movie model again.
-                    // Movie model: docId, title, director, summary, posterUrl, stillCutUrls, genres.
-                    // No rating. I will omit the star rating row for now or put a dummy one if strictly requested, but better to omit if data is missing.
-                    // Wait, the previous screen (Home) had 'DiaryEntry' which has 'rating' (user rating).
-                    // This is 'Movie Search', returning 'Movie' objects from API. External API movies usually don't have 'my rating'.
-                    // Maybe it's 'average rating'? The design implies it.
-                    // I will add the Star icon but with a static text or just Director/Genre for now to keep it real.
-                    // Actually, the user asked to "Implement Search Result List Item Style".
-                    // I will replicate the STYLE.
-                    Row(
-                      children: const [
-                        Icon(Icons.star, color: Colors.amber, size: 16),
-                        SizedBox(width: 4),
-                        Text(
-                          '0.0', // Removed (Kmdb)
-                          style: TextStyle(color: Colors.white70, fontSize: 13),
+                    if (movie.summary.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        movie.summary,
+                        style: TextStyle(
+                          fontFamily: kBodyFont,
+                          fontSize: 12,
+                          color: kOnSurfaceVariant.withValues(alpha: 0.65),
+                          fontStyle: FontStyle.italic,
+                          height: 1.4,
                         ),
-                      ],
-                    ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ],
                 ),
               ),
             ),
+
+            // 화살표
+            Padding(
+              padding: const EdgeInsets.only(right: 14),
+              child: Icon(Icons.chevron_right_rounded,
+                  color: kOnSurfaceVariant.withValues(alpha: 0.4), size: 22),
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _posterPlaceholder() {
+    return Container(
+      color: kSurfaceHigh,
+      child: const Center(
+        child: Icon(Icons.movie_outlined, color: kOnSurfaceVariant, size: 32),
       ),
     );
   }

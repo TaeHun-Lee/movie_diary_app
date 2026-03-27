@@ -10,6 +10,7 @@ import 'package:movie_diary_app/screens/personal_diary_screen.dart';
 import 'package:movie_diary_app/screens/profile_edit_screen.dart';
 import 'package:movie_diary_app/screens/account_settings_screen.dart';
 import 'package:provider/provider.dart';
+import 'package:movie_diary_app/constants.dart';
 
 class MyPageScreen extends StatefulWidget {
   const MyPageScreen({super.key});
@@ -46,48 +47,41 @@ class _MyPageScreenState extends State<MyPageScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: const Text(
-          '마이페이지',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        backgroundColor: Colors.black,
-        elevation: 0,
-        centerTitle: false,
-        automaticallyImplyLeading: false,
-      ),
+      backgroundColor: kSurface,
       body: FutureBuilder<Map<String, dynamic>>(
         future: _loadData,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(color: kPrimary),
+            );
           } else if (snapshot.hasError) {
-            return Center(
+            return const Center(
               child: Text(
                 '데이터를 불러오는데 실패했습니다.',
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(fontFamily: kBodyFont, color: kError),
               ),
             );
           } else if (snapshot.hasData) {
             _homeData = snapshot.data!['homeData'];
             _myPosts = snapshot.data!['myPosts'];
             return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildProfileSection(),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 32),
                   _buildStatsSection(),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 48),
                   _buildMenuSection(),
                 ],
               ),
             );
           } else {
             return const Center(
-              child: Text('데이터가 없습니다.', style: TextStyle(color: Colors.white)),
+              child: Text('데이터가 없습니다.',
+                  style: TextStyle(fontFamily: kBodyFont, color: kOnSurfaceVariant)),
             );
           }
         },
@@ -98,67 +92,107 @@ class _MyPageScreenState extends State<MyPageScreen> {
   Widget _buildProfileSection() {
     return Row(
       children: [
-        CircleAvatar(
-          radius: 36,
-          backgroundColor: Colors.grey[800],
-          backgroundImage: _homeData?.user.profileImage != null
-              ? NetworkImage(
-                  ApiService.buildImageUrl(_homeData!.user.profileImage)!,
-                )
-              : null,
+        Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: kSurfaceHigh,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+            image: _homeData?.user.profileImage != null
+                ? DecorationImage(
+                    image: NetworkImage(
+                      ApiService.buildImageUrl(_homeData!.user.profileImage)!,
+                    ),
+                    fit: BoxFit.cover,
+                  )
+                : null,
+          ),
           child: _homeData?.user.profileImage == null
-              ? Icon(
-                  Icons.person,
-                  size: 40,
-                  color: Colors.white.withOpacity(0.5),
-                )
+              ? const Icon(Icons.person, size: 40, color: kOnSurfaceVariant)
               : null,
         ),
-        const SizedBox(width: 16),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _homeData?.user.nickname ?? '닉네임',
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
+        const SizedBox(width: 20),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _homeData?.user.nickname ?? '닉네임',
+                style: const TextStyle(
+                  fontFamily: kHeadlineFont,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: kOnSurface,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _homeData?.user.userId ?? 'ID',
+                style: const TextStyle(
+                  fontFamily: kBodyFont,
+                  fontSize: 14,
+                  color: kOnSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: kPrimaryGradient,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: kPrimary.withValues(alpha: 0.25),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ElevatedButton(
+            onPressed: () async {
+              if (_homeData == null) return;
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ProfileEditScreen(user: _homeData!.user),
+                ),
+              );
+              if (result == true) {
+                setState(() {
+                  _loadData = _fetchData();
+                });
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            child: const Text(
+              '프로필 편집',
+              style: TextStyle(
+                fontFamily: kHeadlineFont,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
                 color: Colors.white,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              _homeData?.user.userId ?? 'ID',
-              style: TextStyle(fontSize: 14, color: Colors.grey[400]),
-            ),
-          ],
-        ),
-        const Spacer(),
-        ElevatedButton(
-          onPressed: () async {
-            if (_homeData == null) return;
-            final result = await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ProfileEditScreen(user: _homeData!.user),
-              ),
-            );
-            if (result == true) {
-              setState(() {
-                _loadData = _fetchData();
-              });
-            }
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF333333),
-            foregroundColor: Colors.white,
-            elevation: 0,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
           ),
-          child: const Text('프로필 편집', style: TextStyle(fontSize: 12)),
         ),
       ],
     );
@@ -168,8 +202,15 @@ class _MyPageScreenState extends State<MyPageScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E), // Darker grey for stats box
-        borderRadius: BorderRadius.circular(16),
+        color: kSurfaceLowest,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 20,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -177,12 +218,22 @@ class _MyPageScreenState extends State<MyPageScreen> {
           _buildStatItem(
             '${_myPosts?.length ?? 0}',
             '총 리뷰',
-            color: const Color(0xFFE50914),
+            color: kPrimary,
           ),
-          Container(width: 1, height: 40, color: Colors.grey[800]),
-          _buildStatItem(_calculateAverageRating(), '평균 별점', isRating: true),
-          Container(width: 1, height: 40, color: Colors.grey[800]),
-          _buildStatItem(_calculateFavoriteGenre(), '최애 장르'),
+          Container(
+            width: 1,
+            height: 40,
+            color: kOutlineVariant.withValues(alpha: 0.3),
+          ),
+          _buildStatItem(_calculateAverageRating(), '평균 별점',
+              isRating: true, color: kOnSurface),
+          Container(
+            width: 1,
+            height: 40,
+            color: kOutlineVariant.withValues(alpha: 0.3),
+          ),
+          _buildStatItem(_calculateFavoriteGenre(), '최애 장르',
+              color: kOnSurface),
         ],
       ),
     );
@@ -191,7 +242,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
   Widget _buildStatItem(
     String value,
     String label, {
-    Color color = Colors.white,
+    Color color = kOnSurface,
     bool isRating = false,
   }) {
     return Column(
@@ -199,20 +250,30 @@ class _MyPageScreenState extends State<MyPageScreen> {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (isRating) const Icon(Icons.star, color: Colors.white, size: 20),
+            if (isRating)
+              const Icon(Icons.star_rounded, color: Color(0xFFFFB300), size: 22),
             if (isRating) const SizedBox(width: 4),
             Text(
               value,
               style: TextStyle(
+                fontFamily: kHeadlineFont,
                 fontSize: 22,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w800,
                 color: color,
               ),
             ),
           ],
         ),
         const SizedBox(height: 6),
-        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[400])),
+        Text(
+          label,
+          style: const TextStyle(
+            fontFamily: kBodyFont,
+            fontSize: 12,
+            color: kOnSurfaceVariant,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ],
     );
   }
@@ -220,20 +281,18 @@ class _MyPageScreenState extends State<MyPageScreen> {
   Widget _buildMenuSection() {
     return Column(
       children: [
-        _buildMenuItem(Icons.search, '내 다이어리 검색', () async {
-          // Show My Diary List in a new screen
+        _buildMenuItem(Icons.search_rounded, '내 다이어리 검색', () async {
           await Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const MyDiaryListScreen()),
           );
-          // Refresh MyPage stats when returning
           if (mounted) {
             setState(() {
               _loadData = _fetchData();
             });
           }
         }),
-        _buildMenuItem(Icons.book, '개인 다이어리', () {
+        _buildMenuItem(Icons.book_rounded, '개인 다이어리', () {
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -242,7 +301,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
           );
         }),
         _buildMenuItem(Icons.settings_outlined, '계정 설정', () {
-          if (_homeData == null) return; // Ensure data is loaded
+          if (_homeData == null) return;
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -251,26 +310,50 @@ class _MyPageScreenState extends State<MyPageScreen> {
             ),
           );
         }),
-
-        _buildMenuItem(Icons.logout, '로그아웃', _logout),
+        _buildMenuItem(Icons.logout_rounded, '로그아웃', _logout, isDestructive: true),
       ],
     );
   }
 
-  Widget _buildMenuItem(IconData icon, String label, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16.0),
-        child: Row(
-          children: [
-            Icon(icon, color: Colors.grey[400], size: 24),
-            const SizedBox(width: 16),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 16, color: Colors.white),
+  Widget _buildMenuItem(IconData icon, String label, VoidCallback onTap, {bool isDestructive = false}) {
+    final color = isDestructive ? kError : kPrimary;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          splashColor: color.withValues(alpha: 0.1),
+          highlightColor: color.withValues(alpha: 0.05),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: color, size: 22),
+                ),
+                const SizedBox(width: 16),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontFamily: kHeadlineFont,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: isDestructive ? kError : kOnSurface,
+                  ),
+                ),
+                const Spacer(),
+                const Icon(Icons.chevron_right_rounded,
+                    color: kOnSurfaceVariant, size: 20),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -315,20 +398,46 @@ class _MyPageScreenState extends State<MyPageScreen> {
     final bool? confirmed = await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2C2C2C),
-        title: const Text('로그아웃', style: TextStyle(color: Colors.white)),
+        backgroundColor: kSurfaceLowest,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text(
+          '로그아웃',
+          style: TextStyle(
+            fontFamily: kHeadlineFont,
+            fontWeight: FontWeight.w800,
+            color: kOnSurface,
+          ),
+        ),
         content: const Text(
           '정말 로그아웃 하시겠습니까?',
-          style: TextStyle(color: Colors.white70),
+          style: TextStyle(
+            fontFamily: kBodyFont,
+            color: kOnSurfaceVariant,
+            fontSize: 14,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('취소', style: TextStyle(color: Colors.grey)),
+            child: const Text(
+              '취소',
+              style: TextStyle(
+                fontFamily: kHeadlineFont,
+                fontWeight: FontWeight.w600,
+                color: kOnSurfaceVariant,
+              ),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('확인', style: TextStyle(color: Color(0xFFE50914))),
+            child: const Text(
+              '확인',
+              style: TextStyle(
+                fontFamily: kHeadlineFont,
+                fontWeight: FontWeight.w700,
+                color: kError,
+              ),
+            ),
           ),
         ],
       ),
@@ -336,7 +445,9 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
     if (confirmed == true && mounted) {
       await TokenStorage.clearTokens();
+      if (!mounted) return;
       Provider.of<Auth>(context, listen: false).logout();
+      if (!mounted) return;
       Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const LoginScreen()),
         (route) => false,

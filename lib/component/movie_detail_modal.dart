@@ -1,333 +1,383 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:movie_diary_app/constants.dart';
 import 'package:movie_diary_app/data/diary_entry.dart';
 import 'package:movie_diary_app/data/movie.dart';
 import 'package:movie_diary_app/screens/diary_write_screen.dart';
 import 'package:movie_diary_app/services/api_service.dart';
-import 'package:movie_diary_app/constants.dart';
 
 Future<dynamic> showMovieDetailModal(BuildContext context, Movie movie) {
-  return showDialog(
+  return showModalBottomSheet(
     context: context,
-    barrierColor: Colors.black.withOpacity(0.8), // Darker backdrop
-    builder: (BuildContext context) {
-      return Dialog(
-        backgroundColor: const Color(
-          0xFFEBEBF0,
-        ), // Light background like design
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24.0),
-        ),
-        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24.0),
-          child: Container(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.85,
-            ),
-            child: _MovieDetailContent(movie: movie),
-          ),
-        ),
-      );
-    },
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    barrierColor: Colors.black.withValues(alpha: 0.45),
+    builder: (ctx) => _MovieDetailSheet(movie: movie),
   );
 }
 
-class _MovieDetailContent extends StatefulWidget {
+class _MovieDetailSheet extends StatefulWidget {
   final Movie movie;
-
-  const _MovieDetailContent({required this.movie});
+  const _MovieDetailSheet({required this.movie});
 
   @override
-  State<_MovieDetailContent> createState() => _MovieDetailContentState();
+  State<_MovieDetailSheet> createState() => _MovieDetailSheetState();
 }
 
-class _MovieDetailContentState extends State<_MovieDetailContent> {
-  late Future<List<DiaryEntry>> _diaryEntriesFuture;
+class _MovieDetailSheetState extends State<_MovieDetailSheet> {
+  late Future<List<DiaryEntry>> _entriesFuture;
 
   @override
   void initState() {
     super.initState();
-    _diaryEntriesFuture = ApiService.getMyReviewsForMovie(widget.movie.docId);
+    _entriesFuture = ApiService.getMyReviewsForMovie(widget.movie.docId);
   }
 
   @override
   Widget build(BuildContext context) {
-    // Styles are manually defined in children widgets to override dark theme
-
-    return Column(
-      children: [
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.all(24.0),
+    final screenH = MediaQuery.of(context).size.height;
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          height: screenH * 0.88,
+          decoration: BoxDecoration(
+            color: kSurfaceLowest.withValues(alpha: 0.96),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
             children: [
-              // Poster Image - Large and Centered
-              Center(
+              // ── 드래그 핸들 ───────────────────────
+              Padding(
+                padding: const EdgeInsets.only(top: 12, bottom: 4),
                 child: Container(
+                  width: 36,
+                  height: 4,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
+                    color: kOutlineVariant.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+
+              // ── 스크롤 영역 ────────────────────────
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 포스터
+                      Center(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(18),
+                          child: SizedBox(
+                            width: MediaQuery.of(context).size.width * 0.55,
+                            child: widget.movie.posterUrl != null
+                                ? Image.network(
+                                    widget.movie.posterUrl!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) =>
+                                        _posterPlaceholder(context),
+                                  )
+                                : _posterPlaceholder(context),
+                          ),
+                        ),
                       ),
+                      const SizedBox(height: 20),
+
+                      // 장르 칩
+                      if (widget.movie.genres.isNotEmpty &&
+                          widget.movie.genres.first.isNotEmpty)
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: widget.movie.genres.map((g) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 5),
+                              decoration: BoxDecoration(
+                                gradient: kPrimaryGradient,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                g,
+                                style: const TextStyle(
+                                  fontFamily: kBodyFont,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      const SizedBox(height: 14),
+
+                      // 제목
+                      Text(
+                        widget.movie.title,
+                        style: const TextStyle(
+                          fontFamily: kHeadlineFont,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          color: kOnSurface,
+                          height: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+
+                      // 감독 / 연도
+                      Text(
+                        widget.movie.releaseDate.length >= 4
+                            ? '${widget.movie.releaseDate.substring(0, 4)} · ${widget.movie.director}'
+                            : '감독: ${widget.movie.director}',
+                        style: TextStyle(
+                          fontFamily: kBodyFont,
+                          fontSize: 14,
+                          color: kOnSurfaceVariant.withValues(alpha: 0.8),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // 줄거리
+                      if (widget.movie.summary.isNotEmpty) ...[
+                        const Text(
+                          '줄거리',
+                          style: TextStyle(
+                            fontFamily: kHeadlineFont,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: kOnSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          widget.movie.summary,
+                          style: TextStyle(
+                            fontFamily: kBodyFont,
+                            fontSize: 14,
+                            color: kOnSurfaceVariant.withValues(alpha: 0.85),
+                            height: 1.6,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+
+                      // 내 다이어리 목록
+                      _buildDiaryEntries(),
+                      const SizedBox(height: 100),
                     ],
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16.0),
-                    child: widget.movie.posterUrl != null
-                        ? Image.network(
-                            widget.movie.posterUrl!,
-                            width: MediaQuery.of(context).size.width * 0.6,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                width: MediaQuery.of(context).size.width * 0.6,
-                                height: 300,
-                                color: Colors.grey[300],
-                                child: const Icon(
-                                  Icons.movie,
-                                  size: 50,
-                                  color: Colors.grey,
-                                ),
-                              );
-                            },
-                          )
-                        : Container(
-                            width: MediaQuery.of(context).size.width * 0.6,
-                            height: 300,
-                            color: Colors.grey[300],
-                            child: const Icon(
-                              Icons.movie,
-                              size: 50,
-                              color: Colors.grey,
-                            ),
+                ),
+              ),
+
+              // ── 고정 버튼 ─────────────────────────
+              Container(
+                padding: EdgeInsets.only(
+                  left: 24,
+                  right: 24,
+                  top: 12,
+                  bottom: MediaQuery.of(context).padding.bottom + 16,
+                ),
+                decoration: BoxDecoration(
+                  color: kSurfaceLowest.withValues(alpha: 0.96),
+                  border: Border(
+                    top: BorderSide(
+                      color: kOutlineVariant.withValues(alpha: 0.2),
+                    ),
+                  ),
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: kPrimaryGradient,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: kPrimary.withValues(alpha: 0.25),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                DiaryWriteScreen(movie: widget.movie),
                           ),
+                        );
+                        if (result == true && context.mounted) {
+                          Navigator.pop(context, true);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                      ),
+                      child: const Text(
+                        '이 영화로 기록하기',
+                        style: TextStyle(
+                          fontFamily: kHeadlineFont,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
-
-              // Title
-              Text(
-                widget.movie.title,
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // Director & Year
-              Text(
-                widget.movie.releaseDate.length >= 4
-                    ? '${widget.movie.releaseDate.substring(0, 4)} / ${widget.movie.director}'
-                    : '감독: ${widget.movie.director}',
-                style: const TextStyle(color: Colors.black54, fontSize: 16),
-              ),
-              const SizedBox(height: 16),
-
-              // Genres
-              _buildGenreChips(context),
-              const SizedBox(height: 16),
-
-              // Summary
-              Text(
-                widget.movie.summary.isNotEmpty
-                    ? widget.movie.summary
-                    : "줄거리 정보가 없습니다.",
-                style: const TextStyle(
-                  color: Colors.black87,
-                  fontSize: 15,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Rating moved to My Diary section
-              const SizedBox(height: 24),
-
-              // My Diary List (Simplified)
-              _buildDiaryEntriesList(),
             ],
           ),
         ),
-
-        // Bottom Button (Floating style or pinned to bottom)
-        Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => DiaryWriteScreen(movie: widget.movie),
-                  ),
-                );
-
-                if (result == true && context.mounted) {
-                  Navigator.pop(context, true);
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(
-                  0xFF2C2C2C,
-                ), // Dark Button on Light Modal
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              ),
-              child: const Text(
-                '이 영화로 기록하기',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
-  Widget _buildGenreChips(BuildContext context) {
-    if (widget.movie.genres.isEmpty ||
-        (widget.movie.genres.length == 1 &&
-            widget.movie.genres.first.isEmpty)) {
-      return const SizedBox.shrink();
-    }
-
-    return Wrap(
-      spacing: 8.0,
-      runSpacing: 4.0,
-      children: widget.movie.genres.map((genre) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            border: Border.all(color: kPrimaryRedColor),
-            borderRadius: BorderRadius.circular(20),
-            color: Colors.white,
-          ),
-          child: Text(
-            genre,
-            style: const TextStyle(
-              color: kPrimaryRedColor,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        );
-      }).toList(),
+  Widget _posterPlaceholder(BuildContext context) {
+    return Container(
+      width: MediaQuery.of(context).size.width * 0.55,
+      height: 280,
+      color: kSurfaceHigh,
+      child: const Center(
+        child: Icon(Icons.movie_outlined, color: kOnSurfaceVariant, size: 48),
+      ),
     );
   }
 
-  Widget _buildDiaryEntriesList() {
+  Widget _buildDiaryEntries() {
     return FutureBuilder<List<DiaryEntry>>(
-      future: _diaryEntriesFuture,
+      future: _entriesFuture,
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          // Hide section if no entries, or show minimal text
           return const SizedBox.shrink();
         }
-
         final entries = snapshot.data!;
-
-        double averageRating = 0.0;
-        if (entries.isNotEmpty) {
-          double total = 0;
-          for (var entry in entries) {
-            total += entry.rating;
-          }
-          averageRating = total / entries.length;
-        }
+        final avg = entries.fold<double>(0, (s, e) => s + e.rating) /
+            entries.length;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Divider(), // Separator
-            const SizedBox(height: 16),
+            Divider(color: kOutlineVariant.withValues(alpha: 0.3)),
+            const SizedBox(height: 12),
             Row(
               children: [
                 const Text(
                   '내 다이어리',
                   style: TextStyle(
-                    color: Colors.black,
+                    fontFamily: kHeadlineFont,
                     fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
+                    color: kOnSurface,
                   ),
                 ),
                 const SizedBox(width: 8),
+                Icon(Icons.star_rounded, color: kPrimary, size: 16),
                 Text(
-                  '(',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 16),
-                ),
-                const Icon(Icons.star_rounded, color: Colors.amber, size: 20),
-                Text(
-                  ' ${averageRating.toStringAsFixed(1)})',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                  ' ${avg.toStringAsFixed(1)}',
+                  style: const TextStyle(
+                    fontFamily: kBodyFont,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: kOnSurfaceVariant,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: entries.length > 2 ? 2 : entries.length, // Show max 2
-              itemBuilder: (context, index) {
-                final entry = entries[index];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 8),
+            ...entries.take(2).map((entry) {
+              return GestureDetector(
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => DiaryWriteScreen(entryToEdit: entry),
+                    ),
+                  );
+                  if (mounted) {
+                    setState(() {
+                      _entriesFuture = ApiService.getMyReviewsForMovie(
+                          widget.movie.docId);
+                    });
+                  }
+                },
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.black.withOpacity(0.05)),
+                    color: kSurfaceLow,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: kOutlineVariant.withValues(alpha: 0.15),
+                    ),
                   ),
-                  child: ListTile(
-                    title: Text(
-                      entry.title,
-                      style: const TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    subtitle: Text(
-                      entry.watchedDate,
-                      style: const TextStyle(color: Colors.grey),
-                    ),
-                    trailing: const Icon(
-                      Icons.chevron_right,
-                      color: Colors.grey,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              DiaryWriteScreen(entryToEdit: entry),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              entry.title,
+                              style: const TextStyle(
+                                fontFamily: kHeadlineFont,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: kOnSurface,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              entry.watchedDate,
+                              style: TextStyle(
+                                fontFamily: kBodyFont,
+                                fontSize: 12,
+                                color: kOnSurfaceVariant
+                                    .withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ],
                         ),
-                      );
-                      // Refresh list
-                      if (mounted) {
-                        setState(() {
-                          _diaryEntriesFuture = ApiService.getMyReviewsForMovie(
-                            widget.movie.docId,
-                          );
-                        });
-                      }
-                    },
+                      ),
+                      Row(
+                        children: [
+                          Icon(Icons.star_rounded, color: kPrimary, size: 14),
+                          const SizedBox(width: 2),
+                          Text(
+                            entry.rating.toStringAsFixed(1),
+                            style: const TextStyle(
+                              fontFamily: kBodyFont,
+                              fontSize: 12,
+                              color: kOnSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 6),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: kOnSurfaceVariant.withValues(alpha: 0.4),
+                        size: 18,
+                      ),
+                    ],
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            }),
           ],
         );
       },
