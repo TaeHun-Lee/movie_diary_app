@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:movie_diary_app/constants.dart';
 import 'package:movie_diary_app/services/api_service.dart';
 
 class PersonalDiaryWriteScreen extends StatefulWidget {
@@ -17,7 +18,7 @@ class _PersonalDiaryWriteScreenState extends State<PersonalDiaryWriteScreen> {
   final TextEditingController _contentController = TextEditingController();
   bool _isLoading = false;
   bool _isDataLoaded = false;
-  int? _diaryId; // If exists, needed for delete.
+  int? _diaryId;
 
   @override
   void initState() {
@@ -44,11 +45,10 @@ class _PersonalDiaryWriteScreenState extends State<PersonalDiaryWriteScreen> {
         _diaryId = null;
       }
     } catch (e) {
-      // Handle error cleanly
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('데이터를 불러오는데 실패했습니다.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('데이터를 불러오는데 실패했습니다.')),
+        );
       }
     } finally {
       if (mounted) {
@@ -71,14 +71,12 @@ class _PersonalDiaryWriteScreenState extends State<PersonalDiaryWriteScreen> {
         _contentController.text,
       );
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('저장되었습니다.')));
-        Navigator.pop(context, true); // Return true to refresh list
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('저장되었습니다.')),
+        );
+        Navigator.pop(context, true);
       }
     } catch (e) {
-      // handled by ApiService but we can show snackbar if needed (already handled there)
-      // Wait, ApiService helper throws Exception.
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
@@ -95,20 +93,46 @@ class _PersonalDiaryWriteScreenState extends State<PersonalDiaryWriteScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2C2C2C),
-        title: const Text('삭제', style: TextStyle(color: Colors.white)),
+        backgroundColor: kSurfaceLowest,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text(
+          '일기 삭제',
+          style: TextStyle(
+            color: kOnSurface,
+            fontFamily: kHeadlineFont,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         content: const Text(
-          '정말 삭제하시겠습니까?',
-          style: TextStyle(color: Colors.white70),
+          '이 일기를 정말 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.',
+          style: TextStyle(
+            color: kOnSurfaceVariant,
+            fontFamily: kBodyFont,
+            height: 1.5,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소', style: TextStyle(color: Colors.grey)),
+            child: const Text(
+              '취소',
+              style: TextStyle(
+                color: kOnSurfaceVariant,
+                fontFamily: kHeadlineFont,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('확인', style: TextStyle(color: Color(0xFFE50914))),
+            child: const Text(
+              '삭제',
+              style: TextStyle(
+                color: kError,
+                fontFamily: kHeadlineFont,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -120,16 +144,16 @@ class _PersonalDiaryWriteScreenState extends State<PersonalDiaryWriteScreen> {
     try {
       await ApiService.deletePersonalDiary(_diaryId!);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('삭제되었습니다.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('삭제되었습니다.')),
+        );
         Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('삭제에 실패했습니다.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('삭제에 실패했습니다.')),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -146,11 +170,11 @@ class _PersonalDiaryWriteScreenState extends State<PersonalDiaryWriteScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: Color(0xFFE50914),
+            colorScheme: const ColorScheme.light(
+              primary: kPrimary,
               onPrimary: Colors.white,
-              surface: Color(0xFF2C2C2C),
-              onSurface: Colors.white,
+              surface: kSurfaceLowest,
+              onSurface: kOnSurface,
             ),
           ),
           child: child!,
@@ -167,90 +191,140 @@ class _PersonalDiaryWriteScreenState extends State<PersonalDiaryWriteScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: kSurface,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
+        foregroundColor: kOnSurface,
+        elevation: 0,
+        centerTitle: true,
         title: GestureDetector(
           onTap: _pickDate,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                DateFormat('yyyy년 MM월 dd일').format(_selectedDate),
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const Icon(Icons.arrow_drop_down, color: Colors.white),
-            ],
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: kSurfaceLowest,
+              borderRadius: BorderRadius.circular(kRadiusM),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  offset: const Offset(0, 4),
+                  blurRadius: 10,
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  DateFormat('yyyy. MM. dd').format(_selectedDate),
+                  style: const TextStyle(
+                    fontFamily: kHeadlineFont,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.keyboard_arrow_down_rounded, color: kPrimary),
+              ],
+            ),
           ),
         ),
         actions: [
           if (_diaryId != null && !_isLoading)
             IconButton(
-              icon: const Icon(Icons.delete_outline),
+              icon: const Icon(Icons.delete_sweep_rounded, color: kError),
               onPressed: _deleteDiary,
             ),
         ],
       ),
       body: _isLoading && !_isDataLoaded
           ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFFE50914)),
+              child: CircularProgressIndicator(color: kPrimary),
             )
           : Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(20.0),
               child: Column(
                 children: [
                   Expanded(
-                    child: TextField(
-                      controller: _contentController,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        height: 1.5,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: kSurfaceHigh,
+                        borderRadius: BorderRadius.circular(kRadiusXL),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.white.withValues(alpha: 0.8),
+                            offset: const Offset(-4, -4),
+                            blurRadius: 10,
+                          ),
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            offset: const Offset(4, 4),
+                            blurRadius: 10,
+                          ),
+                        ],
                       ),
-                      maxLines: null,
-                      expands: true,
-                      decoration: InputDecoration(
-                        hintText: '오늘 하루는 어땠나요?',
-                        hintStyle: TextStyle(color: Colors.grey[400]),
-                        border: OutlineInputBorder(
-                          borderSide: BorderSide.none,
-                          borderRadius: BorderRadius.circular(8),
+                      child: TextField(
+                        controller: _contentController,
+                        style: const TextStyle(
+                          color: kOnSurface,
+                          fontFamily: kBodyFont,
+                          fontSize: 16,
+                          height: 1.6,
                         ),
-                        filled: true,
-                        fillColor: const Color(0xFF1E1E1E),
-                        contentPadding: const EdgeInsets.all(16),
+                        maxLines: null,
+                        expands: true,
+                        decoration: InputDecoration(
+                          hintText: '오늘 하루는 어땠나요?\n기억하고 싶은 순간을 기록해보세요.',
+                          hintStyle: TextStyle(
+                            color: kOnSurfaceVariant.withValues(alpha: 0.4),
+                            fontFamily: kBodyFont,
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.all(24),
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  SizedBox(
+                  const SizedBox(height: 24),
+                  Container(
                     width: double.infinity,
+                    decoration: BoxDecoration(
+                      gradient: kPrimaryGradient,
+                      borderRadius: BorderRadius.circular(kRadiusXL),
+                      boxShadow: [
+                        BoxShadow(
+                          color: kPrimary.withValues(alpha: 0.25),
+                          offset: const Offset(0, 8),
+                          blurRadius: 16,
+                        ),
+                      ],
+                    ),
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _saveDiary,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFE50914),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        shadowColor: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(vertical: 20),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(kRadiusXL),
+                        ),
+                        textStyle: const TextStyle(
+                          fontFamily: kHeadlineFont,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                       child: _isLoading
                           ? const SizedBox(
-                              height: 20,
-                              width: 20,
+                              height: 24,
+                              width: 24,
                               child: CircularProgressIndicator(
                                 color: Colors.white,
-                                strokeWidth: 2,
+                                strokeWidth: 3,
                               ),
                             )
-                          : const Text(
-                              '저장',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.white,
-                              ),
-                            ),
+                          : const Text('기록 완료'),
                     ),
                   ),
                 ],

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:movie_diary_app/constants.dart';
 import 'package:movie_diary_app/data/diary_entry.dart';
 import 'package:movie_diary_app/screens/diary_write_screen.dart';
 import 'package:movie_diary_app/services/api_service.dart';
@@ -28,8 +31,13 @@ class _MyDiaryListScreenState extends State<MyDiaryListScreen> {
   @override
   void initState() {
     super.initState();
+    // Default to last 30 days or similar? 
+    // todo.md says use current date for range but in a light theme.
     final now = DateTime.now();
-    _selectedDateRange = DateTimeRange(start: now, end: now);
+    _selectedDateRange = DateTimeRange(
+      start: now.subtract(const Duration(days: 30)),
+      end: now,
+    );
     _loadPosts();
     _searchController.addListener(() {
       setState(() {
@@ -89,17 +97,17 @@ class _MyDiaryListScreenState extends State<MyDiaryListScreen> {
         if (_selectedDateRange != null) {
           DateTime? watchedDate;
           try {
+            // "2023.01.01" 또는 "2023-01-01" 등의 형식을 표준 ISO 형식으로 변환 시도
             String cleanDate = post.watchedDate
                 .replaceAll('.', '-')
                 .replaceAll('/', '-')
                 .trim();
-            cleanDate = cleanDate.replaceAll(' ', '-');
-            watchedDate = DateTime.parse(cleanDate);
+            // 연속된 공백 제거
+            cleanDate = cleanDate.split(' ').first; 
+            watchedDate = DateTime.tryParse(cleanDate);
           } catch (_) {}
 
           if (watchedDate != null) {
-            // Check if watchedDate is within the range [start, end]
-            // We compare only Year, Month, Day to avoid time issues
             final start = _selectedDateRange!.start;
             final end = _selectedDateRange!.end;
 
@@ -115,7 +123,8 @@ class _MyDiaryListScreenState extends State<MyDiaryListScreen> {
                 dateOnly.compareTo(startOnly) >= 0 &&
                 dateOnly.compareTo(endOnly) <= 0;
           } else {
-            matchesDate = false;
+            // 날짜 정보가 없거나 파싱 실패 시 기본적으로 제외 (또는 포함 여부 결정)
+            matchesDate = false; 
           }
         }
 
@@ -124,7 +133,6 @@ class _MyDiaryListScreenState extends State<MyDiaryListScreen> {
     });
   }
 
-  // Get all unique genres from the loaded posts
   List<String> _getAvailableGenres() {
     final Set<String> genres = {};
     for (var post in _allPosts) {
@@ -156,38 +164,36 @@ class _MyDiaryListScreenState extends State<MyDiaryListScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: Color(0xFFE50914),
+            colorScheme: const ColorScheme.light(
+              primary: kPrimary,
               onPrimary: Colors.white,
-              surface: Color(0xFF1E1E1E),
-              onSurface: Colors.white,
+              surface: kSurfaceLowest,
+              onSurface: kOnSurface,
             ),
-            scaffoldBackgroundColor: const Color(0xFF1E1E1E),
+            scaffoldBackgroundColor: kSurface,
             appBarTheme: const AppBarTheme(
-              backgroundColor: Colors.black,
-              titleTextStyle: TextStyle(color: Colors.white, fontSize: 20),
+              backgroundColor: kSurface,
+              elevation: 0,
+              iconTheme: IconThemeData(color: kOnSurface),
+              titleTextStyle: TextStyle(
+                color: kOnSurface,
+                fontSize: 20,
+                fontFamily: kHeadlineFont,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFFE50914),
+                foregroundColor: kPrimary,
+                textStyle: const TextStyle(
+                  fontFamily: kHeadlineFont,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             textTheme: const TextTheme(
-              headlineLarge: TextStyle(color: Colors.white),
-              headlineMedium: TextStyle(color: Colors.white),
-              headlineSmall: TextStyle(color: Colors.white),
-              titleLarge: TextStyle(color: Colors.white),
-              titleMedium: TextStyle(color: Colors.white),
-              titleSmall: TextStyle(color: Colors.white),
-              bodyLarge: TextStyle(color: Colors.white),
-              bodyMedium: TextStyle(color: Colors.white),
-              bodySmall: TextStyle(color: Colors.white),
-              labelLarge: TextStyle(color: Colors.white),
-              labelMedium: TextStyle(color: Colors.white),
-              labelSmall: TextStyle(color: Colors.white),
-            ),
-            dialogTheme: DialogThemeData(
-              backgroundColor: const Color(0xFF1E1E1E),
+              bodyMedium: TextStyle(fontFamily: kBodyFont),
+              labelLarge: TextStyle(fontFamily: kHeadlineFont),
             ),
           ),
           child: child!,
@@ -207,95 +213,138 @@ class _MyDiaryListScreenState extends State<MyDiaryListScreen> {
     final availableGenres = _getAvailableGenres();
 
     return Scaffold(
-      backgroundColor: Colors.black, // Background color matches old theme for now, but usually it should be kSurface
+      backgroundColor: kSurface,
       body: Column(
         children: [
-          // Search Area
+          // Header & Search Area
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            color: Colors.black,
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            color: kSurface,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Title Search
-                TextField(
-                  controller: _searchController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: '제목 검색',
-                    hintStyle: TextStyle(color: Colors.grey[600]),
-                    filled: true,
-                    fillColor: const Color(0xFF1E1E1E),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 0,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide.none,
-                    ),
-                    prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+                const Text(
+                  "My Movie Archive",
+                  style: TextStyle(
+                    fontFamily: kHeadlineFont,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: kOnSurface,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 20),
+                // Title Search (Neuromorphic Inset style)
+                Container(
+                  decoration: BoxDecoration(
+                    color: kSurfaceHigh,
+                    borderRadius: BorderRadius.circular(kRadiusL),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        offset: const Offset(-2, -2),
+                        blurRadius: 4,
+                      ),
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        offset: const Offset(2, 2),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    style: const TextStyle(
+                      color: kOnSurface,
+                      fontFamily: kBodyFont,
+                      fontSize: 15,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: '제목 검색',
+                      hintStyle: TextStyle(
+                        color: kOnSurfaceVariant.withValues(alpha: 0.5),
+                        fontFamily: kBodyFont,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.search_rounded,
+                        color: kOnSurfaceVariant,
+                        size: 22,
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
 
                 // Date Range Picker Row
                 InkWell(
                   onTap: () => _selectDateRange(context),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(kRadiusM),
                   child: Container(
-                    height: 48,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E1E1E),
-                      borderRadius: BorderRadius.circular(8),
+                      color: kSurfaceLowest,
+                      borderRadius: BorderRadius.circular(kRadiusM),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          offset: const Offset(0, 4),
+                          blurRadius: 10,
+                        ),
+                      ],
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        const Icon(
+                          Icons.calendar_today_rounded,
+                          color: kPrimary,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 12),
                         if (_selectedDateRange != null) ...[
                           Text(
-                            "${_selectedDateRange!.start.year}/${_selectedDateRange!.start.month.toString().padLeft(2, '0')}/${_selectedDateRange!.start.day.toString().padLeft(2, '0')}",
+                            "${_selectedDateRange!.start.year}.${_selectedDateRange!.start.month.toString().padLeft(2, '0')}.${_selectedDateRange!.start.day.toString().padLeft(2, '0')}",
                             style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
+                              color: kOnSurface,
+                              fontFamily: kHeadlineFont,
+                              fontWeight: FontWeight.w600,
                               fontSize: 14,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          const Icon(
-                            Icons.calendar_today,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 12),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
                             child: Text(
                               "~",
                               style: TextStyle(
-                                color: Colors.grey,
+                                color: kOnSurfaceVariant.withValues(alpha: 0.5),
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
                           Text(
-                            "${_selectedDateRange!.end.year}/${_selectedDateRange!.end.month.toString().padLeft(2, '0')}/${_selectedDateRange!.end.day.toString().padLeft(2, '0')}",
+                            "${_selectedDateRange!.end.year}.${_selectedDateRange!.end.month.toString().padLeft(2, '0')}.${_selectedDateRange!.end.day.toString().padLeft(2, '0')}",
                             style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
+                              color: kOnSurface,
+                              fontFamily: kHeadlineFont,
+                              fontWeight: FontWeight.w600,
                               fontSize: 14,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          const Icon(
-                            Icons.calendar_today,
-                            color: Colors.white,
-                            size: 16,
-                          ),
                         ] else ...[
                           const Text(
-                            "날짜 선택",
-                            style: TextStyle(color: Colors.white),
+                            "날짜 범위 선택",
+                            style: TextStyle(
+                              color: kOnSurfaceVariant,
+                              fontFamily: kHeadlineFont,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ],
                       ],
@@ -315,26 +364,28 @@ class _MyDiaryListScreenState extends State<MyDiaryListScreen> {
                             label: Text(genre),
                             selected: isSelected,
                             onSelected: (_) => _toggleGenre(genre),
-                            backgroundColor: const Color(0xFF1E1E1E),
-                            selectedColor: const Color(0xFFE50914),
-                            checkmarkColor: Colors.white,
+                            backgroundColor: kSurfaceHigh,
+                            selectedColor: kSecondaryContainer,
+                            checkmarkColor: kOnSecondaryContainer,
                             labelStyle: TextStyle(
                               color: isSelected
-                                  ? Colors.white
-                                  : Colors.grey[400],
+                                  ? kOnSecondaryContainer
+                                  : kOnSurfaceVariant,
+                              fontFamily: kBodyFont,
+                              fontSize: 13,
                               fontWeight: isSelected
                                   ? FontWeight.bold
                                   : FontWeight.normal,
                             ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(20),
-                              side: BorderSide(
-                                color: isSelected
-                                    ? const Color(0xFFE50914)
-                                    : Colors.grey[800]!,
-                              ),
+                              side: BorderSide.none,
                             ),
-                            showCheckmark: false,
+                            showCheckmark: isSelected,
                           ),
                         );
                       }).toList(),
@@ -347,92 +398,233 @@ class _MyDiaryListScreenState extends State<MyDiaryListScreen> {
           // List Area
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(
+                    child: CircularProgressIndicator(color: kPrimary),
+                  )
                 : _errorMessage != null
                 ? Center(
-                    child: Text(
-                      _errorMessage!,
-                      style: const TextStyle(color: Colors.white),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.error_outline_rounded,
+                          color: kSurfaceDim,
+                          size: 48,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _errorMessage!,
+                          style: const TextStyle(
+                            color: kOnSurfaceVariant,
+                            fontFamily: kBodyFont,
+                          ),
+                        ),
+                      ],
                     ),
                   )
                 : _filteredPosts.isEmpty
                 ? const Center(
-                    child: Text(
-                      '검색 결과가 없습니다.',
-                      style: TextStyle(color: Colors.white),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.movie_filter_rounded,
+                          color: kSurfaceDim,
+                          size: 64,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          '검색 결과가 없습니다.',
+                          style: TextStyle(
+                            color: kOnSurfaceVariant,
+                            fontFamily: kBodyFont,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
                     ),
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
                     itemCount: _filteredPosts.length,
                     itemBuilder: (context, index) {
                       final post = _filteredPosts[index];
-                      return Card(
-                        color: const Color(0xFF1E1E1E),
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.all(12),
-                          leading: ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: post.movie.posterUrl != null
-                                ? Image.network(
-                                    post.movie.posterUrl!,
-                                    width: 50,
-                                    height: 75,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => Container(
-                                      width: 50,
-                                      height: 75,
-                                      color: Colors.grey,
-                                    ),
-                                  )
-                                : Container(
-                                    width: 50,
-                                    height: 75,
-                                    color: Colors.grey,
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: kSurfaceLowest,
+                          borderRadius: BorderRadius.circular(kRadiusXL),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.04),
+                              offset: const Offset(0, 6),
+                              blurRadius: 12,
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(kRadiusXL),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () async {
+                                final result = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        DiaryWriteScreen(entryToEdit: post),
                                   ),
-                          ),
-                          title: Text(
-                            post.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
+                                );
+                                if (result == true) {
+                                  _loadPosts();
+                                }
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Row(
+                                  children: [
+                                    // Poster Image (Cached)
+                                    Hero(
+                                      tag: 'post_${post.id}',
+                                      child: Container(
+                                        width: 80,
+                                        height: 110,
+                                        decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(kRadiusL),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black
+                                                  .withValues(alpha: 0.1),
+                                              offset: const Offset(0, 2),
+                                              blurRadius: 4,
+                                            ),
+                                          ],
+                                        ),
+                                        child: ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(kRadiusL),
+                                          child: post.movie.posterUrl != null
+                                              ? CachedNetworkImage(
+                                                  imageUrl:
+                                                      ApiService.buildImageUrl(post.movie.posterUrl)!,
+                                                  fit: BoxFit.cover,
+                                                  placeholder:
+                                                      (context, url) =>
+                                                          Shimmer.fromColors(
+                                                    baseColor: kSurfaceHigh,
+                                                    highlightColor:
+                                                        kSurfaceLowest,
+                                                    child: Container(
+                                                      color: kSurfaceHigh,
+                                                    ),
+                                                  ),
+                                                  errorWidget:
+                                                      (context, url, error) =>
+                                                          Container(
+                                                    color: kSurfaceHigh,
+                                                    child: const Icon(
+                                                      Icons.movie_rounded,
+                                                      color: kSurfaceDim,
+                                                    ),
+                                                  ),
+                                                )
+                                              : Container(
+                                                  color: kSurfaceHigh,
+                                                  child: const Icon(
+                                                    Icons.movie_rounded,
+                                                    color: kSurfaceDim,
+                                                  ),
+                                                ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    // Info Area
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            post.title,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontFamily: kHeadlineFont,
+                                              fontSize: 17,
+                                              fontWeight: FontWeight.bold,
+                                              color: kOnSurface,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            post.movie.title,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontFamily: kBodyFont,
+                                              fontSize: 14,
+                                              color: kOnSurfaceVariant,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Row(
+                                            children: [
+                                              Text(
+                                                post.watchedDate,
+                                                style: TextStyle(
+                                                  fontFamily: kBodyFont,
+                                                  fontSize: 12,
+                                                  color: kOnSurfaceVariant
+                                                      .withValues(alpha: 0.7),
+                                                ),
+                                              ),
+                                              const Spacer(),
+                                              // Rating Badge
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 10,
+                                                  vertical: 4,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  gradient: kPrimaryGradient,
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    const Icon(
+                                                      Icons.star_rounded,
+                                                      color: Colors.white,
+                                                      size: 14,
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      post.rating.toString(),
+                                                      style: const TextStyle(
+                                                        color: Colors.white,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 12,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
-                          subtitle: Text(
-                            post.movie.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: Colors.grey[400]),
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.star,
-                                color: Colors.amber,
-                                size: 16,
-                              ),
-                              Text(
-                                ' ${post.rating}',
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                            ],
-                          ),
-                          onTap: () async {
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    DiaryWriteScreen(entryToEdit: post),
-                              ),
-                            );
-                            if (result == true) {
-                              _loadPosts(); // Reload to reflect changes
-                            }
-                          },
                         ),
                       );
                     },

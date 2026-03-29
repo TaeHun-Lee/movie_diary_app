@@ -2,520 +2,260 @@ import 'package:flutter/material.dart';
 import 'package:movie_diary_app/constants.dart';
 import 'package:movie_diary_app/data/movie.dart';
 import 'package:movie_diary_app/screens/movie_detail_screen.dart';
+import 'package:movie_diary_app/screens/community_feed_screen.dart';
 import 'package:movie_diary_app/services/api_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class MovieSearchScreen extends StatefulWidget {
   final VoidCallback? onBack;
-
   const MovieSearchScreen({super.key, this.onBack});
 
   @override
   State<MovieSearchScreen> createState() => MovieSearchScreenState();
 }
 
-class MovieSearchScreenState extends State<MovieSearchScreen> {
+class MovieSearchScreenState extends State<MovieSearchScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
   List<Movie> _movies = [];
   bool _isLoading = false;
-  bool _isLoadingMore = false;
-  bool _searchPerformed = false;
-  String? _errorMessage;
-  int _startCount = 0;
+  String _lastQuery = '';
 
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_onScroll);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    _tabController.dispose();
     _searchController.dispose();
     super.dispose();
   }
 
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 200 &&
-        !_isLoadingMore &&
-        !_isLoading) {
-      _loadMoreMovies();
-    }
-  }
-
   void reset() {
-    _searchController.clear();
-    setState(() {
-      _movies = [];
-      _searchPerformed = false;
-      _errorMessage = null;
-      _isLoading = false;
-      _isLoadingMore = false;
-      _startCount = 0;
-    });
+    // 탭 리셋 시 필요한 로직
   }
 
-  Future<void> _searchMovies() async {
-    final query = _searchController.text.trim();
-    if (query.isEmpty) return;
+  Future<void> _onSearch(String query) async {
+    if (query.trim().isEmpty) return;
+    if (query == _lastQuery) return;
 
     setState(() {
       _isLoading = true;
-      _searchPerformed = true;
-      _errorMessage = null;
-      _startCount = 0;
-      _movies = [];
+      _lastQuery = query;
     });
 
     try {
-      final movies =
-          await ApiService.searchMovies(query, startCount: 0);
+      final results = await ApiService.searchMovies(query);
       setState(() {
-        _movies = movies;
-        _startCount = movies.length;
+        _movies = results;
+        _isLoading = false;
       });
-    } catch (_) {
+    } catch (e) {
+      setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('영화 검색에 실패했습니다.')),
         );
       }
-      setState(() => _errorMessage = '영화 검색에 실패했습니다.');
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _loadMoreMovies() async {
-    setState(() => _isLoadingMore = true);
-    try {
-      final movies = await ApiService.searchMovies(
-        _searchController.text,
-        startCount: _startCount,
-      );
-      if (movies.isNotEmpty) {
-        setState(() {
-          _movies.addAll(movies);
-          _startCount += movies.length;
-        });
-      }
-    } catch (_) {
-      // 조용히 실패
-    } finally {
-      setState(() => _isLoadingMore = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kSurface,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── 헤더 ──────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '시네마 탐색',
-                    style: TextStyle(
-                      fontFamily: kHeadlineFont,
-                      fontSize: 30,
-                      fontWeight: FontWeight.w800,
-                      color: kOnSurface,
-                      height: 1.1,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ── 검색 바 (Neuromorphic) ─────────
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: kSurfaceHigh,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x0D000000),
-                                blurRadius: 5,
-                                offset: Offset(2, 2),
-                              ),
-                              BoxShadow(
-                                color: Colors.white,
-                                blurRadius: 5,
-                                offset: Offset(-2, -2),
-                              ),
-                            ],
-                          ),
-                          child: TextField(
-                            controller: _searchController,
-                            style: const TextStyle(
-                              fontFamily: kBodyFont,
-                              color: kOnSurface,
-                              fontSize: 15,
-                            ),
-                            cursorColor: kPrimary,
-                            textInputAction: TextInputAction.search,
-                            decoration: InputDecoration(
-                              hintText: '영화 제목으로 검색...',
-                              hintStyle: TextStyle(
-                                color:
-                                    kOnSurfaceVariant.withValues(alpha: 0.55),
-                                fontSize: 14,
-                              ),
-                              prefixIcon: const Icon(
-                                Icons.search_rounded,
-                                color: kOnSurfaceVariant,
-                                size: 22,
-                              ),
-                              suffixIcon:
-                                  _searchController.text.isNotEmpty
-                                      ? IconButton(
-                                          icon: const Icon(Icons.clear_rounded,
-                                              color: kOnSurfaceVariant,
-                                              size: 18),
-                                          onPressed: () {
-                                            _searchController.clear();
-                                            setState(() {
-                                              _movies = [];
-                                              _searchPerformed = false;
-                                            });
-                                          },
-                                        )
-                                      : null,
-                              filled: true,
-                              fillColor: Colors.transparent,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                borderSide: BorderSide.none,
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                borderSide: BorderSide(
-                                  color: kPrimary.withValues(alpha: 0.3),
-                                  width: 1.5,
-                                ),
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                  vertical: 16, horizontal: 20),
-                            ),
-                            onSubmitted: (_) => _searchMovies(),
-                            onChanged: (_) => setState(() {}),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-
-                      // 검색 버튼
-                      GestureDetector(
-                        onTap: _searchMovies,
-                        child: Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            gradient: kPrimaryGradient,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: kPrimary.withValues(alpha: 0.3),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.search_rounded,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // ── 결과 영역 ──────────────────────────
-            Expanded(
-              child: _buildBody(),
-            ),
-          ],
+    return Column(
+      children: [
+        _buildTabBar(),
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildMovieSearchTab(),
+              const CommunityFeedScreen(),
+            ],
+          ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildTabBar() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+      decoration: BoxDecoration(
+        color: kSurfaceHigh,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        indicator: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: kPrimaryGradient,
+        ),
+        indicatorSize: TabBarIndicatorSize.tab,
+        dividerColor: Colors.transparent,
+        labelColor: Colors.white,
+        unselectedLabelColor: kOnSurfaceVariant,
+        labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        tabs: const [
+          Tab(text: '영화 검색'),
+          Tab(text: '커뮤니티'),
+        ],
       ),
     );
   }
 
-  Widget _buildBody() {
-    if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: kPrimary),
-      );
-    }
-    if (_errorMessage != null) {
-      return Center(
-        child: Text(
-          _errorMessage!,
-          style: const TextStyle(color: kError),
-        ),
-      );
-    }
-    if (!_searchPerformed) {
-      return _buildInitialState();
-    }
-    if (_movies.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.search_off_rounded,
-                size: 48, color: kOnSurfaceVariant),
-            const SizedBox(height: 12),
-            Text(
-              '"${_searchController.text}" 검색 결과가 없습니다.',
-              style: const TextStyle(
-                fontFamily: kBodyFont,
-                fontSize: 14,
-                color: kOnSurfaceVariant,
-              ),
+  Widget _buildMovieSearchTab() {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          child: TextField(
+            controller: _searchController,
+            decoration: neuInputDecoration(
+              hint: '영화 제목을 입력하세요...',
+              prefix: const Icon(Icons.search_rounded),
             ),
-          ],
+            onSubmitted: _onSearch,
+          ),
         ),
-      );
-    }
-
-    return ListView.separated(
-      controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
-      itemCount: _movies.length + (_isLoadingMore ? 1 : 0),
-      separatorBuilder: (_, __) => const SizedBox(height: 16),
-      itemBuilder: (context, index) {
-        if (index == _movies.length) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: CircularProgressIndicator(color: kPrimary),
-            ),
-          );
-        }
-        return _buildMovieCard(_movies[index]);
-      },
+        Expanded(
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator(color: kPrimary))
+              : _movies.isEmpty
+                  ? _buildInitialState()
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
+                      itemCount: _movies.length,
+                      itemBuilder: (context, index) => _buildMovieCard(_movies[index]),
+                    ),
+        ),
+      ],
     );
   }
 
   Widget _buildInitialState() {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: kSurfaceHigh,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: kSurfaceDim.withValues(alpha: 0.4),
-                    blurRadius: 10,
-                    offset: const Offset(3, 3),
-                  ),
-                  const BoxShadow(
-                    color: Colors.white,
-                    blurRadius: 10,
-                    offset: Offset(-3, -3),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.movie_filter_outlined,
-                size: 36,
-                color: kPrimary,
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              '영화 제목을 검색해보세요',
-              style: TextStyle(
-                fontFamily: kHeadlineFont,
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: kOnSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '좋아하는 영화를 찾고\n다이어리를 작성해보세요',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: kBodyFont,
-                fontSize: 13,
-                color: kOnSurfaceVariant.withValues(alpha: 0.7),
-                height: 1.5,
-              ),
-            ),
-          ],
-        ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.movie_outlined, size: 80, color: kSurfaceDim),
+          const SizedBox(height: 20),
+          Text(
+            _lastQuery.isEmpty ? '궁금한 영화를 검색해보세요!' : '검색 결과가 없습니다.',
+            style: TextStyle(color: kOnSurfaceVariant.withValues(alpha: 0.7), fontSize: 16),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildMovieCard(Movie movie) {
-    return GestureDetector(
-      onTap: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => MovieDetailScreen(movie: movie),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: kSurfaceLowest,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            offset: const Offset(0, 6),
+            blurRadius: 12,
           ),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: kSurfaceLowest,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: kSurfaceDim.withValues(alpha: 0.3),
-              blurRadius: 12,
-              offset: const Offset(2, 4),
+        ],
+      ),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MovieDetailScreen(movie: movie),
             ),
-            const BoxShadow(
-              color: Colors.white,
-              blurRadius: 8,
-              offset: Offset(-2, -2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // 포스터
-            ClipRRect(
-              borderRadius: const BorderRadius.horizontal(
-                left: Radius.circular(20),
-              ),
-              child: SizedBox(
-                width: 90,
-                height: 130,
-                child: movie.posterUrl != null
-                    ? Image.network(
-                        movie.posterUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _posterPlaceholder(),
-                      )
-                    : _posterPlaceholder(),
-              ),
-            ),
-
-            // 정보
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
+          );
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              if (movie.posterUrl != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: CachedNetworkImage(
+                    imageUrl: ApiService.buildImageUrl(movie.posterUrl)!,
+                    width: 80,
+                    height: 120,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              const SizedBox(width: 16),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 장르 칩
-                    if (movie.genres.isNotEmpty)
-                      Wrap(
-                        spacing: 4,
-                        runSpacing: 4,
-                        children: movie.genres.take(2).map((g) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: kSecondaryContainer,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              g,
-                              style: const TextStyle(
-                                fontFamily: kBodyFont,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: kOnSecondaryContainer,
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    if (movie.genres.isNotEmpty) const SizedBox(height: 8),
-
-                    // 제목
                     Text(
                       movie.title,
-                      style: const TextStyle(
-                        fontFamily: kHeadlineFont,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: kOnSurface,
-                      ),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-
-                    // 감독
                     Text(
-                      movie.director,
-                      style: TextStyle(
-                        fontFamily: kBodyFont,
-                        fontSize: 12,
-                        color: kOnSurfaceVariant.withValues(alpha: 0.8),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      '${movie.director} | ${movie.releaseDate.substring(0, 4)}',
+                      style: TextStyle(color: kOnSurfaceVariant, fontSize: 14),
                     ),
-
-                    if (movie.summary.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        movie.summary,
-                        style: TextStyle(
-                          fontFamily: kBodyFont,
-                          fontSize: 12,
-                          color: kOnSurfaceVariant.withValues(alpha: 0.65),
-                          fontStyle: FontStyle.italic,
-                          height: 1.4,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 4,
+                      children: movie.genres.take(3).map((g) => Chip(
+                        label: Text(g, style: const TextStyle(fontSize: 10)),
+                        padding: EdgeInsets.zero,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      )).toList(),
+                    ),
                   ],
                 ),
               ),
-            ),
-
-            // 화살표
-            Padding(
-              padding: const EdgeInsets.only(right: 14),
-              child: Icon(Icons.chevron_right_rounded,
-                  color: kOnSurfaceVariant.withValues(alpha: 0.4), size: 22),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _posterPlaceholder() {
-    return Container(
-      color: kSurfaceHigh,
-      child: const Center(
-        child: Icon(Icons.movie_outlined, color: kOnSurfaceVariant, size: 32),
+  // ─────────────────────────────────────────────────────────────
+  // Neuromorphic 인셋 입력 필드 데코레이션 헬퍼
+  // ─────────────────────────────────────────────────────────────
+  InputDecoration neuInputDecoration({
+    String? hint,
+    Widget? prefix,
+    Widget? suffix,
+    String? label,
+  }) {
+    return InputDecoration(
+      hintText: hint,
+      labelText: label,
+      prefixIcon: prefix,
+      suffixIcon: suffix,
+      filled: true,
+      fillColor: kSurfaceHigh,
+      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(
+          color: kPrimary.withValues(alpha: 0.3),
+          width: 1.5,
+        ),
       ),
     );
   }

@@ -90,6 +90,10 @@ class _MyPageScreenState extends State<MyPageScreen> {
   }
 
   Widget _buildProfileSection() {
+    final profileImageUrl = _homeData?.user.profileImage != null
+        ? ApiService.buildImageUrl(_homeData!.user.profileImage)
+        : null;
+
     return Row(
       children: [
         Container(
@@ -105,16 +109,14 @@ class _MyPageScreenState extends State<MyPageScreen> {
                 offset: const Offset(0, 4),
               ),
             ],
-            image: _homeData?.user.profileImage != null
+            image: profileImageUrl != null
                 ? DecorationImage(
-                    image: NetworkImage(
-                      ApiService.buildImageUrl(_homeData!.user.profileImage)!,
-                    ),
+                    image: NetworkImage(profileImageUrl),
                     fit: BoxFit.cover,
                   )
                 : null,
           ),
-          child: _homeData?.user.profileImage == null
+          child: profileImageUrl == null
               ? const Icon(Icons.person, size: 40, color: kOnSurfaceVariant)
               : null,
         ),
@@ -365,8 +367,9 @@ class _MyPageScreenState extends State<MyPageScreen> {
     }
     final genreCounts = <String, int>{};
     for (final post in _myPosts!) {
-      // Assuming post.movie.genres is List<String>
-      for (final genre in post.movie.genres) {
+      // Safely access movie and genres
+      final genres = post.movie.genres;
+      for (final genre in genres) {
         if (genre.isNotEmpty) {
           genreCounts[genre] = (genreCounts[genre] ?? 0) + 1;
         }

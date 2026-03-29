@@ -2,6 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class TokenStorage {
   static const String _accessTokenKey = 'access_token';
+  static const String _refreshTokenKey = 'refresh_token';
   static const String _userIdKey = 'user_id';
   static const String _nicknameKey = 'nickname';
 
@@ -39,6 +40,18 @@ class TokenStorage {
 
   static Future<bool> hasAccessToken() async {
     return _hasString(_accessTokenKey);
+  }
+
+  static Future<void> saveRefreshToken(String token) async {
+    await _saveString(_refreshTokenKey, token);
+  }
+
+  static Future<String?> getRefreshToken() async {
+    return _getString(_refreshTokenKey);
+  }
+
+  static Future<void> clearRefreshToken() async {
+    await _clearString(_refreshTokenKey);
   }
 
   static Future<void> saveUserId(String userId) async {

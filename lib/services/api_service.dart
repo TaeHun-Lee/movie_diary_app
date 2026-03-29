@@ -19,6 +19,8 @@ class ApiService {
 
   // Dio 인스턴스 생성
   static final Dio _dio = Dio(BaseOptions(baseUrl: baseUrl));
+  static bool _isRefreshing = false;
+  static final List<void Function(String)> _refreshQueue = [];
 
   // 클래스 생성 시 인터셉터 설정
   ApiService();
@@ -29,7 +31,8 @@ class ApiService {
         onRequest: (options, handler) async {
           // 토큰이 필요한 요청에 대해 헤더에 토큰 추가
           if (!options.path.contains('/auth/login') &&
-              !options.path.contains('/auth/register')) {
+              !options.path.contains('/auth/register') &&
+              !options.path.contains('/auth/refresh')) {
             final token = await TokenStorage.getAccessToken();
             if (token != null) {
               options.headers['Authorization'] = 'Bearer $token';
@@ -37,28 +40,93 @@ class ApiService {
           }
           return handler.next(options); // 요청 계속 진행
         },
-        onError: (DioException e, handler) {
+        onError: (DioException e, handler) async {
           final path = e.requestOptions.path;
-          // 401 에러 발생 시 로그인 페이지로 리디렉션
+
+          // 401 에러 발생 시 토큰 갱신 시도
           if (e.response?.statusCode == 401 &&
               !path.contains('/auth/login') &&
               !path.contains('/auth/register') &&
               !path.contains('/auth/security-question') &&
               !path.contains('/auth/reset-password') &&
               !path.contains('/auth/change-password')) {
-            NavigationService.handleUnauthorized();
-            // 에러 처리를 여기서 중단하고, 호출한 쪽에서는 아무것도 받지 않게 함
-            return handler.reject(
-              DioException(
-                requestOptions: e.requestOptions,
-                message: 'Unauthorized. Redirecting to login.',
-              ),
-            );
+            
+            if (path.contains('/auth/refresh')) {
+              // 리프레시 토큰 자체가 만료된 경우
+              NavigationService.handleUnauthorized();
+              return handler.reject(e);
+            }
+
+            if (_isRefreshing) {
+              // 이미 토큰 갱신 중이면 큐에 추가
+              _refreshQueue.add((String newToken) async {
+                e.requestOptions.headers['Authorization'] = 'Bearer $newToken';
+                try {
+                  final response = await _dio.fetch(e.requestOptions);
+                  handler.resolve(response);
+                } catch (err) {
+                  handler.reject(err as DioException);
+                }
+              });
+              return;
+            }
+
+            _isRefreshing = true;
+            final refreshToken = await TokenStorage.getRefreshToken();
+
+            if (refreshToken == null) {
+              _isRefreshing = false;
+              NavigationService.handleUnauthorized();
+              return handler.reject(e);
+            }
+
+            try {
+              // 토큰 갱신 요청
+              final success = await _refreshToken(refreshToken);
+              if (success) {
+                final newToken = await TokenStorage.getAccessToken();
+                _isRefreshing = false;
+                
+                // 큐에 있는 요청들 처리
+                for (var callback in _refreshQueue) {
+                  callback(newToken!);
+                }
+                _refreshQueue.clear();
+
+                // 원래 요청 재시도
+                e.requestOptions.headers['Authorization'] = 'Bearer $newToken';
+                final response = await _dio.fetch(e.requestOptions);
+                return handler.resolve(response);
+              } else {
+                _isRefreshing = false;
+                NavigationService.handleUnauthorized();
+                return handler.reject(e);
+              }
+            } catch (err) {
+              _isRefreshing = false;
+              NavigationService.handleUnauthorized();
+              return handler.reject(e);
+            }
           }
           return handler.next(e); // 다른 에러는 계속 전파
         },
       ),
     );
+  }
+
+  static Future<bool> _refreshToken(String refreshToken) async {
+    try {
+      final response = await _dio.post(
+        '/auth/refresh',
+        data: {'refresh_token': refreshToken},
+      );
+      final data = response.data['data'];
+      await TokenStorage.saveAccessToken(data['access_token']);
+      await TokenStorage.saveRefreshToken(data['refresh_token']);
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   // Dio 인스턴스를 외부에서 접근할 수 있도록 getter 제공
@@ -73,7 +141,10 @@ class ApiService {
         '/auth/login',
         data: {'user_id': userId, 'password': password},
       );
-      return response.data['data'];
+      final data = response.data['data'];
+      await TokenStorage.saveAccessToken(data['access_token']);
+      await TokenStorage.saveRefreshToken(data['refresh_token']);
+      return data;
     } on DioException catch (e) {
       _handleDioError(e, 'Failed to login');
     }
@@ -109,7 +180,10 @@ class ApiService {
       }
 
       final response = await _dio.post('/auth/register', data: data);
-      return response.data['data'];
+      final dataResponse = response.data['data'];
+      await TokenStorage.saveAccessToken(dataResponse['access_token']);
+      await TokenStorage.saveRefreshToken(dataResponse['refresh_token']);
+      return dataResponse;
     } on DioException catch (e) {
       _handleDioError(e, 'Failed to register');
     }
@@ -204,6 +278,81 @@ class ApiService {
       return HomeData.fromJson(userJson, postsJson);
     } on DioException catch (e) {
       _handleDioError(e, '홈 데이터를 불러오는데 실패했습니다.');
+    }
+  }
+
+  static Future<Map<String, dynamic>> getPosts({
+    int page = 1,
+    int limit = 10,
+    String? keyword,
+    String? genre,
+    String? dateFrom,
+    String? dateTo,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '/posts',
+        queryParameters: {
+          'page': page,
+          'limit': limit,
+          if (keyword != null) 'keyword': keyword,
+          if (genre != null) 'genre': genre,
+          if (dateFrom != null) 'dateFrom': dateFrom,
+          if (dateTo != null) 'dateTo': dateTo,
+        },
+      );
+      return response.data['data'];
+    } on DioException catch (e) {
+      _handleDioError(e, 'Failed to fetch posts');
+    }
+  }
+
+  // Comments
+  static Future<List<dynamic>> getComments(int postId) async {
+    try {
+      final response = await _dio.get('/comments/post/$postId');
+      return response.data['data'];
+    } on DioException catch (e) {
+      _handleDioError(e, 'Failed to fetch comments');
+    }
+  }
+
+  static Future<Map<String, dynamic>> createComment(int postId, String content) async {
+    try {
+      final response = await _dio.post(
+        '/comments',
+        data: {'post_id': postId, 'content': content},
+      );
+      return response.data['data'];
+    } on DioException catch (e) {
+      _handleDioError(e, 'Failed to create comment');
+    }
+  }
+
+  static Future<void> deleteComment(int commentId) async {
+    try {
+      await _dio.delete('/comments/$commentId');
+    } on DioException catch (e) {
+      _handleDioError(e, 'Failed to delete comment');
+    }
+  }
+
+  // Likes
+  static Future<Map<String, dynamic>> toggleLike(int postId) async {
+    try {
+      final response = await _dio.post('/likes/toggle/$postId');
+      return response.data['data'];
+    } on DioException catch (e) {
+      _handleDioError(e, 'Failed to toggle like');
+    }
+  }
+
+  static Future<bool> getLikeStatus(int postId) async {
+    try {
+      final response = await _dio.get('/likes/status/$postId');
+      return response.data['data'] as bool;
+    } on DioException catch (e) {
+      _handleDioError(e, 'Failed to get like status');
     }
   }
 
