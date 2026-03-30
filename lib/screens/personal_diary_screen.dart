@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:movie_diary_app/constants.dart';
+import 'package:movie_diary_app/providers/diary_provider.dart';
 import 'package:movie_diary_app/screens/personal_diary_write_screen.dart';
-import 'package:movie_diary_app/services/api_service.dart';
 
 class PersonalDiaryScreen extends StatefulWidget {
   const PersonalDiaryScreen({super.key});
@@ -12,54 +13,27 @@ class PersonalDiaryScreen extends StatefulWidget {
 }
 
 class _PersonalDiaryScreenState extends State<PersonalDiaryScreen> {
-  List<dynamic> _diaries = [];
-  bool _isLoading = true;
-
   @override
   void initState() {
     super.initState();
-    _fetchDiaries();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<DiaryProvider>().fetchPersonalDiaries();
+    });
   }
 
   Future<void> _fetchDiaries() async {
-    setState(() => _isLoading = true);
-    try {
-      final diaries = await ApiService.getPersonalDiaries();
-      // Sort by date DESC
-      diaries.sort((a, b) {
-        final dateA = DateTime.parse(a['date']);
-        final dateB = DateTime.parse(b['date']);
-        return dateB.compareTo(dateA);
-      });
-
-      if (mounted) {
-        setState(() {
-          _diaries = diaries;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('다이어리 목록을 불러오는데 실패했습니다.')),
-        );
-      }
-    }
+    await context.read<DiaryProvider>().fetchPersonalDiaries(forceRefresh: true);
   }
 
   Future<void> _navigateToWrite([DateTime? date]) async {
-    final result = await Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) =>
             PersonalDiaryWriteScreen(initialDate: date ?? DateTime.now()),
       ),
     );
-
-    if (result == true || result == null) {
-      _fetchDiaries();
-    }
+    // Provider 상태 갱신이 필요할 경우 호출 가능
   }
 
   @override
@@ -80,12 +54,19 @@ class _PersonalDiaryScreenState extends State<PersonalDiaryScreen> {
         elevation: 0,
         centerTitle: true,
       ),
-      body: _isLoading
-          ? const Center(
+      body: Consumer<DiaryProvider>(
+        builder: (context, diaryProvider, child) {
+          final diaries = diaryProvider.personalDiaries;
+          final isLoading = diaryProvider.isLoading;
+
+          if (isLoading && diaries.isEmpty) {
+            return const Center(
               child: CircularProgressIndicator(color: kPrimary),
-            )
-          : _diaries.isEmpty
-          ? Center(
+            );
+          }
+
+          if (diaries.isEmpty) {
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -107,96 +88,100 @@ class _PersonalDiaryScreenState extends State<PersonalDiaryScreen> {
                   ),
                 ],
               ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
-              itemCount: _diaries.length,
-              itemBuilder: (context, index) {
-                final diary = _diaries[index];
-                final date = DateTime.parse(diary['date']);
-                final content = diary['content'] ?? '';
+            );
+          }
 
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color: kSurfaceLowest,
-                    borderRadius: BorderRadius.circular(kRadiusXL),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        offset: const Offset(0, 6),
-                        blurRadius: 12,
-                      ),
-                      BoxShadow(
-                        color: Colors.white.withValues(alpha: 0.8),
-                        offset: const Offset(-2, -2),
-                        blurRadius: 4,
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(kRadiusXL),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () => _navigateToWrite(date),
-                        child: Padding(
-                          padding: const EdgeInsets.all(20.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    DateFormat(
-                                      'yyyy. MM. dd',
-                                      'ko_KR',
-                                    ).format(date),
-                                    style: const TextStyle(
-                                      color: kOnSurface,
-                                      fontFamily: kHeadlineFont,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 16,
-                                    ),
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
+            itemCount: diaries.length,
+            itemBuilder: (context, index) {
+              final diary = diaries[index];
+              final date = DateTime.tryParse(diary['date'] ?? '') ?? DateTime.now();
+              final content = diary['content'] ?? '';
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: kSurfaceLowest,
+                  borderRadius: BorderRadius.circular(kRadiusXL),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      offset: const Offset(0, 6),
+                      blurRadius: 12,
+                    ),
+                    BoxShadow(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      offset: const Offset(-2, -2),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(kRadiusXL),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => _navigateToWrite(date),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  DateFormat(
+                                    'yyyy. MM. dd',
+                                    'ko_KR',
+                                  ).format(date),
+                                  style: const TextStyle(
+                                    color: kOnSurface,
+                                    fontFamily: kHeadlineFont,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 16,
                                   ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    DateFormat('(E)', 'ko_KR').format(date),
-                                    style: TextStyle(
-                                      color: kOnSurfaceVariant.withValues(alpha: 0.5),
-                                      fontFamily: kHeadlineFont,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  Icon(
-                                    Icons.chevron_right_rounded,
-                                    color: kOnSurfaceVariant.withValues(alpha: 0.3),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-                              Text(
-                                content,
-                                style: const TextStyle(
-                                  color: kOnSurface,
-                                  fontFamily: kBodyFont,
-                                  fontSize: 15,
-                                  height: 1.6,
                                 ),
-                                maxLines: 4,
-                                overflow: TextOverflow.ellipsis,
+                                const SizedBox(width: 8),
+                                Text(
+                                  DateFormat('(E)', 'ko_KR').format(date),
+                                  style: TextStyle(
+                                    color: kOnSurfaceVariant.withValues(alpha: 0.5),
+                                    fontFamily: kHeadlineFont,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: kOnSurfaceVariant.withValues(alpha: 0.3),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              content,
+                              style: const TextStyle(
+                                color: kOnSurface,
+                                fontFamily: kBodyFont,
+                                fontSize: 15,
+                                height: 1.6,
                               ),
-                            ],
-                          ),
+                              maxLines: 4,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
+          );
+        },
+      ),
       floatingActionButton: Container(
         decoration: BoxDecoration(
           gradient: kPrimaryGradient,

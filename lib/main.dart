@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:provider/provider.dart' as legacy_provider;
 import 'package:movie_diary_app/providers/auth_provider.dart';
+import 'package:movie_diary_app/providers/post_provider.dart';
+import 'package:movie_diary_app/providers/home_provider.dart';
+import 'package:movie_diary_app/providers/diary_provider.dart';
 import 'package:movie_diary_app/screens/main_screen.dart';
 import 'package:movie_diary_app/screens/login_screen.dart';
 import 'package:movie_diary_app/screens/register_screen.dart';
@@ -12,8 +16,11 @@ import 'package:movie_diary_app/constants.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'package:movie_diary_app/services/connectivity_service.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await ConnectivityService().initialize();
   await dotenv.load(fileName: ".env");
   ApiService.initialize();
 
@@ -26,7 +33,19 @@ Future<void> main() async {
   );
 
   runApp(
-    ChangeNotifierProvider(create: (context) => Auth(), child: const MyApp()),
+    ProviderScope(
+      child: legacy_provider.MultiProvider(
+        providers: [
+          legacy_provider.ChangeNotifierProvider(create: (_) => Auth()),
+          legacy_provider.ChangeNotifierProvider(create: (_) => PostProvider()),
+          legacy_provider.ChangeNotifierProvider(create: (_) => HomeProvider()),
+          legacy_provider.ChangeNotifierProvider(
+            create: (_) => DiaryProvider(),
+          ),
+        ],
+        child: const MyApp(),
+      ),
+    ),
   );
 }
 
@@ -190,10 +209,7 @@ class MyApp extends StatelessWidget {
           fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
-        unselectedLabelStyle: TextStyle(
-          fontFamily: kBodyFont,
-          fontSize: 11,
-        ),
+        unselectedLabelStyle: TextStyle(fontFamily: kBodyFont, fontSize: 11),
         showSelectedLabels: true,
         showUnselectedLabels: true,
         type: BottomNavigationBarType.fixed,
@@ -274,10 +290,12 @@ class GradientButton extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: onPressed == null
-            ? LinearGradient(colors: [
-                kPrimary.withValues(alpha: 0.5),
-                kPrimaryEnd.withValues(alpha: 0.5),
-              ])
+            ? LinearGradient(
+                colors: [
+                  kPrimary.withValues(alpha: 0.5),
+                  kPrimaryEnd.withValues(alpha: 0.5),
+                ],
+              )
             : kPrimaryGradient,
         borderRadius: BorderRadius.circular(borderRadius),
         boxShadow: onPressed == null
@@ -378,7 +396,7 @@ class _AuthCheckState extends State<AuthCheck> {
   }
 
   Future<void> _checkAccessToken() async {
-    final auth = Provider.of<Auth>(context, listen: false);
+    final auth = legacy_provider.Provider.of<Auth>(context, listen: false);
     final accessToken = await TokenStorage.getAccessToken();
     if (accessToken != null) {
       auth.login(accessToken);
@@ -393,13 +411,11 @@ class _AuthCheckState extends State<AuthCheck> {
     if (_isLoading) {
       return const Scaffold(
         backgroundColor: kSurface,
-        body: Center(
-          child: CircularProgressIndicator(color: kPrimary),
-        ),
+        body: Center(child: CircularProgressIndicator(color: kPrimary)),
       );
     }
 
-    final auth = Provider.of<Auth>(context);
+    final auth = legacy_provider.Provider.of<Auth>(context);
     if (auth.isLoggedIn) {
       return const MainScreen();
     } else {

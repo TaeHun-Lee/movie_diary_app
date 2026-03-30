@@ -1,26 +1,32 @@
+import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:dio/dio.dart';
 import 'package:movie_diary_app/data/diary_entry.dart';
 import 'package:movie_diary_app/data/home_data.dart';
 import 'package:movie_diary_app/data/movie.dart';
+import 'package:movie_diary_app/services/connectivity_service.dart';
 import 'package:movie_diary_app/services/navigation_service.dart';
 import 'package:movie_diary_app/services/token_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // 배포 모드(Release)에서는 상대 경로('')를 사용하여 Nginx 프록시를 태움
-  // 개발 모드(Debug/Profile)에서는 .env의 BASE_URL(예: localhost:3000)을 사용
-  // Web 배포 모드일 때만 상대 경로('') 사용 (Nginx 프록시)
-  // Mobile(Android/iOS)이거나 개발 모드일 때는 .env의 절대 경로 사용
   static final String baseUrl = (kIsWeb && kReleaseMode)
       ? ''
       : dotenv.env['BASE_URL']!;
 
   // Dio 인스턴스 생성
-  static final Dio _dio = Dio(BaseOptions(baseUrl: baseUrl));
+  static final Dio _dio = Dio(BaseOptions(
+    baseUrl: baseUrl,
+    connectTimeout: const Duration(seconds: 10),
+    receiveTimeout: const Duration(seconds: 10),
+  ));
   static bool _isRefreshing = false;
   static final List<void Function(String)> _refreshQueue = [];
+  
+  static const String _homeDataCacheKey = 'cached_home_data';
 
   // 클래스 생성 시 인터셉터 설정
   ApiService();
@@ -132,11 +138,23 @@ class ApiService {
   // Dio 인스턴스를 외부에서 접근할 수 있도록 getter 제공
   static Dio get dio => _dio;
 
+  static Future<void> _checkConnectivity() async {
+    final isConnected = await ConnectivityService().isConnected();
+    if (!isConnected) {
+      throw DioException(
+        requestOptions: RequestOptions(path: ''),
+        type: DioExceptionType.connectionError,
+        error: '네트워크 연결이 끊겼습니다.',
+      );
+    }
+  }
+
   static Future<Map<String, dynamic>> login({
     required String userId,
     required String password,
   }) async {
     try {
+      await _checkConnectivity();
       final response = await _dio.post(
         '/auth/login',
         data: {'user_id': userId, 'password': password},
@@ -146,16 +164,17 @@ class ApiService {
       await TokenStorage.saveRefreshToken(data['refresh_token']);
       return data;
     } on DioException catch (e) {
-      _handleDioError(e, 'Failed to login');
+      _handleDioError(e, '로그인에 실패했습니다');
     }
   }
 
   static Future<Map<String, dynamic>> getUserInfo(String userId) async {
     try {
+      await _checkConnectivity();
       final response = await _dio.get('/users/$userId');
       return response.data['data'];
     } on DioException catch (e) {
-      _handleDioError(e, 'Failed to fetch user info');
+      _handleDioError(e, '사용자 정보를 가져오는데 실패했습니다');
     }
   }
 
@@ -167,6 +186,7 @@ class ApiService {
     String? securityAnswer,
   }) async {
     try {
+      await _checkConnectivity();
       final data = {
         'user_id': userId,
         'password': password,
@@ -185,12 +205,13 @@ class ApiService {
       await TokenStorage.saveRefreshToken(dataResponse['refresh_token']);
       return dataResponse;
     } on DioException catch (e) {
-      _handleDioError(e, 'Failed to register');
+      _handleDioError(e, '회원가입에 실패했습니다');
     }
   }
 
   static Future<String?> uploadPhoto(XFile file) async {
     try {
+      await _checkConnectivity();
       String fileName = file.name;
       FormData formData;
 
@@ -208,12 +229,13 @@ class ApiService {
       final response = await _dio.post('/uploads', data: formData);
       return response.data['data']['url'];
     } on DioException catch (e) {
-      _handleDioError(e, 'Failed to upload photo');
+      _handleDioError(e, '사진 업로드에 실패했습니다');
     }
   }
 
   static Future<String?> getSecurityQuestion(String userId) async {
     try {
+      await _checkConnectivity();
       final response = await _dio.get('/auth/security-question/$userId');
       return response.data['data']['question'];
     } on DioException catch (e) {
@@ -221,7 +243,7 @@ class ApiService {
       if (e.response?.statusCode == 404 || e.response?.statusCode == 401) {
         throw Exception('사용자를 찾을 수 없거나 보안 질문이 설정되지 않았습니다.');
       }
-      _handleDioError(e, 'Failed to get security question');
+      _handleDioError(e, '보안 질문을 가져오는데 실패했습니다');
     }
   }
 
@@ -230,6 +252,7 @@ class ApiService {
     String newPassword,
   ) async {
     try {
+      await _checkConnectivity();
       await _dio.post(
         '/auth/change-password',
         data: {'old_password': oldPassword, 'new_password': newPassword},
@@ -248,6 +271,7 @@ class ApiService {
     String newPassword,
   ) async {
     try {
+      await _checkConnectivity();
       await _dio.post(
         '/auth/reset-password',
         data: {
@@ -266,19 +290,49 @@ class ApiService {
 
   static Future<HomeData> fetchHomeData() async {
     try {
+      await _checkConnectivity();
       // 두 API 요청을 동시에 보냄
       final responses = await Future.wait([
         _dio.get('/auth/me'),
-        _dio.get('/posts/my'), // 내 포스트만 가져오도록 수정
+        _dio.get('/posts/my'),
       ]);
 
       final userJson = responses[0].data['data'];
       final postsJson = responses[1].data['data'] as List;
 
-      return HomeData.fromJson(userJson, postsJson);
+      final homeData = HomeData.fromJson(userJson, postsJson);
+      
+      // 캐시 저장
+      await _saveHomeDataToCache(homeData);
+      
+      return homeData;
     } on DioException catch (e) {
+      // 오프라인이거나 에러 발생 시 캐시 시도
+      final cached = await _loadHomeDataFromCache();
+      if (cached != null) {
+        return cached;
+      }
       _handleDioError(e, '홈 데이터를 불러오는데 실패했습니다.');
     }
+  }
+
+  static Future<void> _saveHomeDataToCache(HomeData data) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_homeDataCacheKey, jsonEncode(data.toJson()));
+  }
+
+  static Future<HomeData?> _loadHomeDataFromCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString(_homeDataCacheKey);
+      if (cached != null) {
+        final decoded = jsonDecode(cached);
+        return HomeData.fromJson(decoded['user'], decoded['posts']);
+      }
+    } catch (e) {
+      // Ignore cache loading errors
+    }
+    return null;
   }
 
   static Future<Map<String, dynamic>> getPosts({
@@ -290,6 +344,7 @@ class ApiService {
     String? dateTo,
   }) async {
     try {
+      await _checkConnectivity();
       final response = await _dio.get(
         '/posts',
         queryParameters: {
@@ -303,61 +358,67 @@ class ApiService {
       );
       return response.data['data'];
     } on DioException catch (e) {
-      _handleDioError(e, 'Failed to fetch posts');
+      _handleDioError(e, '게시글 목록을 가져오는데 실패했습니다');
     }
   }
 
   // Comments
   static Future<List<dynamic>> getComments(int postId) async {
     try {
+      await _checkConnectivity();
       final response = await _dio.get('/comments/post/$postId');
       return response.data['data'];
     } on DioException catch (e) {
-      _handleDioError(e, 'Failed to fetch comments');
+      _handleDioError(e, '댓글을 불러오는데 실패했습니다');
     }
   }
 
   static Future<Map<String, dynamic>> createComment(int postId, String content) async {
     try {
+      await _checkConnectivity();
       final response = await _dio.post(
         '/comments',
         data: {'post_id': postId, 'content': content},
       );
       return response.data['data'];
     } on DioException catch (e) {
-      _handleDioError(e, 'Failed to create comment');
+      _handleDioError(e, '댓글 작성에 실패했습니다');
     }
   }
 
   static Future<void> deleteComment(int commentId) async {
     try {
+      await _checkConnectivity();
       await _dio.delete('/comments/$commentId');
     } on DioException catch (e) {
-      _handleDioError(e, 'Failed to delete comment');
+      _handleDioError(e, '댓글 삭제에 실패했습니다');
     }
   }
 
   // Likes
   static Future<Map<String, dynamic>> toggleLike(int postId) async {
     try {
+      await _checkConnectivity();
       final response = await _dio.post('/likes/toggle/$postId');
       return response.data['data'];
     } on DioException catch (e) {
-      _handleDioError(e, 'Failed to toggle like');
+      _handleDioError(e, '좋아요 처리 중 오류가 발생했습니다');
     }
   }
 
   static Future<bool> getLikeStatus(int postId) async {
     try {
+      await _checkConnectivity();
       final response = await _dio.get('/likes/status/$postId');
       return response.data['data'] as bool;
     } on DioException catch (e) {
-      _handleDioError(e, 'Failed to get like status');
+      _handleDioError(e, '좋아요 상태를 가져오는데 실패했습니다');
     }
   }
 
   static Future<List<DiaryEntry>> getMyPosts() async {
     try {
+      await _checkConnectivity();
       final response = await _dio.get('/posts/my');
       final List<dynamic> data = response.data['data'];
       return data.map((json) => DiaryEntry.fromJson(json)).toList();
@@ -371,6 +432,7 @@ class ApiService {
     int startCount = 0,
   }) async {
     try {
+      await _checkConnectivity();
       final response = await _dio.get(
         '/movies/search',
         queryParameters: {'title': title, 'startCount': startCount},
@@ -378,12 +440,13 @@ class ApiService {
       final List<dynamic> data = response.data['data'];
       return data.map((json) => Movie.fromJson(json)).toList();
     } on DioException catch (e) {
-      _handleDioError(e, 'Failed to search movies');
+      _handleDioError(e, '영화 검색에 실패했습니다');
     }
   }
 
   static Future<List<DiaryEntry>> getMyReviewsForMovie(String docId) async {
     try {
+      await _checkConnectivity();
       final response = await _dio.get('/posts/movie/doc/$docId/my-reviews');
       final List<dynamic> data = response.data['data'];
       return data.map((json) => DiaryEntry.fromJson(json)).toList();
@@ -391,7 +454,7 @@ class ApiService {
       if (e.response?.statusCode == 404) {
         return [];
       }
-      _handleDioError(e, 'Failed to fetch posts');
+      _handleDioError(e, '리뷰 목록을 가져오는데 실패했습니다');
     }
   }
 
@@ -407,6 +470,7 @@ class ApiService {
     List<String>? photoUrls,
   }) async {
     try {
+      await _checkConnectivity();
       await _dio.post(
         '/posts',
         data: {
@@ -421,7 +485,7 @@ class ApiService {
         },
       );
     } on DioException catch (e) {
-      _handleDioError(e, 'Failed to create post');
+      _handleDioError(e, '게시글 작성에 실패했습니다');
     }
   }
 
@@ -436,6 +500,7 @@ class ApiService {
     List<String>? photoUrls,
   }) async {
     try {
+      await _checkConnectivity();
       await _dio.patch(
         '/posts/$postId',
         data: {
@@ -449,15 +514,16 @@ class ApiService {
         },
       );
     } on DioException catch (e) {
-      _handleDioError(e, 'Failed to update post');
+      _handleDioError(e, '게시글 수정에 실패했습니다');
     }
   }
 
   static Future<void> deletePost(int postId) async {
     try {
+      await _checkConnectivity();
       await _dio.delete('/posts/$postId');
     } on DioException catch (e) {
-      _handleDioError(e, 'Failed to delete post');
+      _handleDioError(e, '게시글 삭제에 실패했습니다');
     }
   }
 
@@ -508,6 +574,7 @@ class ApiService {
   // 프로필 업데이트
   static Future<void> updateProfile(int id, Map<String, dynamic> data) async {
     try {
+      await _checkConnectivity();
       await _dio.patch('/users/$id', data: data);
     } on DioException catch (e) {
       _handleDioError(e, '프로필 수정에 실패했습니다.');
@@ -517,6 +584,7 @@ class ApiService {
   // 회원 탈퇴
   static Future<void> deleteUser(int id) async {
     try {
+      await _checkConnectivity();
       await _dio.delete('/users/$id');
     } on DioException catch (e) {
       _handleDioError(e, '회원 탈퇴에 실패했습니다.');
@@ -526,6 +594,7 @@ class ApiService {
   // Personal Diary
   static Future<void> savePersonalDiary(String date, String content) async {
     try {
+      await _checkConnectivity();
       // Backend create handles upsert logic
       await _dio.post(
         '/personal-diary',
@@ -538,8 +607,9 @@ class ApiService {
 
   static Future<List<dynamic>> getPersonalDiaries() async {
     try {
+      await _checkConnectivity();
       final response = await _dio.get('/personal-diary');
-      return response.data['data']; // Correctly access the data field
+      return response.data['data'];
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) {
         return [];
@@ -552,6 +622,7 @@ class ApiService {
     String date,
   ) async {
     try {
+      await _checkConnectivity();
       final response = await _dio.get('/personal-diary/date/$date');
       return response.data['data'];
     } on DioException {
@@ -561,6 +632,7 @@ class ApiService {
 
   static Future<void> deletePersonalDiary(int id) async {
     try {
+      await _checkConnectivity();
       await _dio.delete('/personal-diary/$id');
     } on DioException catch (e) {
       _handleDioError(e, '일기 삭제에 실패했습니다.');
@@ -569,6 +641,23 @@ class ApiService {
 
   // DioException 처리를 위한 헬퍼 함수
   static Never _handleDioError(DioException e, String message) {
-    throw Exception('$message: ${e.message}');
+    String errorMsg = message;
+    
+    if (e.type == DioExceptionType.connectionError || e.type == DioExceptionType.connectionTimeout) {
+      errorMsg = '네트워크 연결 상태를 확인해주세요.';
+    } else if (e.type == DioExceptionType.receiveTimeout) {
+      errorMsg = '서버 응답 시간이 초과되었습니다.';
+    } else if (e.response != null) {
+      final statusCode = e.response?.statusCode;
+      final serverMessage = e.response?.data?['message'];
+      
+      if (statusCode == 500) {
+        errorMsg = '서버 내부 오류가 발생했습니다.';
+      } else if (serverMessage != null) {
+        errorMsg = serverMessage.toString();
+      }
+    }
+    
+    throw Exception(errorMsg);
   }
 }

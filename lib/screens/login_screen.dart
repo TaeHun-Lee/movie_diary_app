@@ -53,9 +53,9 @@ class _LoginScreenState extends State<LoginScreen> {
       await TokenStorage.saveUserId(userId);
 
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const MainScreen()),
-      );
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const MainScreen()));
     } catch (_) {
       if (mounted) _showSnackBar('아이디 또는 비밀번호가 일치하지 않습니다.');
     } finally {
@@ -64,9 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showSnackBar(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -78,7 +76,8 @@ class _LoginScreenState extends State<LoginScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 32),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              minHeight: MediaQuery.of(context).size.height -
+              minHeight:
+                  MediaQuery.of(context).size.height -
                   MediaQuery.of(context).padding.top -
                   MediaQuery.of(context).padding.bottom,
             ),
@@ -180,7 +179,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         // 서브타이틀
         Text(
-          'Your personal cinema sanctuary',
+          '당신만의 영화 보관함',
           style: TextStyle(
             fontFamily: kBodyFont,
             fontSize: 14,
@@ -208,11 +207,7 @@ class _LoginScreenState extends State<LoginScreen> {
             blurRadius: 5,
             offset: Offset(2, 2),
           ),
-          BoxShadow(
-            color: Colors.white,
-            blurRadius: 5,
-            offset: Offset(-2, -2),
-          ),
+          BoxShadow(color: Colors.white, blurRadius: 5, offset: Offset(-2, -2)),
         ],
       ),
       child: TextField(

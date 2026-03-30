@@ -22,6 +22,15 @@ class User {
       profileImage: json['profile_image'] as String?,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'nickname': nickname,
+      'user_id': userId,
+      'profile_image': profileImage,
+    };
+  }
 }
 
 class RatedMovie {
@@ -43,6 +52,13 @@ class HomeData {
     required this.totalCount,
     required this.recentEntries,
   });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'user': user.toJson(),
+      'posts': recentEntries.map((e) => e.toJson()).toList(),
+    };
+  }
 
   // ── Computed Properties (lazy, 1회만 계산) ──
 

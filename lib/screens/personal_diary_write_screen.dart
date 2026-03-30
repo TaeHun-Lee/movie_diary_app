@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:movie_diary_app/constants.dart';
+import 'package:movie_diary_app/providers/diary_provider.dart';
 import 'package:movie_diary_app/services/api_service.dart';
 
 class PersonalDiaryWriteScreen extends StatefulWidget {
@@ -66,7 +68,7 @@ class _PersonalDiaryWriteScreenState extends State<PersonalDiaryWriteScreen> {
     setState(() => _isLoading = true);
     try {
       final formattedDate = DateFormat('yyyy-MM-dd').format(_selectedDate);
-      await ApiService.savePersonalDiary(
+      await context.read<DiaryProvider>().saveDiary(
         formattedDate,
         _contentController.text,
       );
@@ -142,7 +144,7 @@ class _PersonalDiaryWriteScreenState extends State<PersonalDiaryWriteScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await ApiService.deletePersonalDiary(_diaryId!);
+      await context.read<DiaryProvider>().deleteDiary(_diaryId!);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('삭제되었습니다.')),

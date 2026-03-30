@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:movie_diary_app/constants.dart';
-import 'package:movie_diary_app/services/api_service.dart';
+import 'package:movie_diary_app/providers/post_provider.dart';
 import 'package:movie_diary_app/screens/post_detail_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
+import 'package:movie_diary_app/services/api_service.dart';
+import 'package:movie_diary_app/data/diary_entry.dart';
 
 class CommunityFeedScreen extends StatefulWidget {
   const CommunityFeedScreen({super.key});
@@ -16,10 +19,6 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
 
-  List<dynamic> _posts = [];
-  int _currentPage = 1;
-  bool _isLoading = false;
-  bool _hasMore = true;
   String? _selectedGenre;
   String _keyword = '';
 
@@ -38,7 +37,9 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchPosts();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<PostProvider>().fetchAllPosts(refresh: true);
+    });
     _scrollController.addListener(_onScroll);
   }
 
@@ -50,43 +51,11 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
   }
 
   Future<void> _fetchPosts({bool refresh = false}) async {
-    if (_isLoading) return;
-    if (refresh) {
-      setState(() {
-        _currentPage = 1;
-        _posts = [];
-        _hasMore = true;
-      });
-    }
-
-    if (!_hasMore) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      final data = await ApiService.getPosts(
-        page: _currentPage,
-        keyword: _keyword.isEmpty ? null : _keyword,
-        genre: _selectedGenre == '전체' ? null : _selectedGenre,
-      );
-
-      final List<dynamic> newPosts = data['items'];
-      final int lastPage = data['lastPage'];
-
-      setState(() {
-        _posts.addAll(newPosts);
-        _currentPage++;
-        _hasMore = _currentPage <= lastPage;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('게시글을 불러오는데 실패했습니다.')));
-      }
-    }
+    await context.read<PostProvider>().fetchAllPosts(
+      keyword: _keyword.isEmpty ? null : _keyword,
+      genre: _selectedGenre == '전체' ? null : _selectedGenre,
+      refresh: refresh,
+    );
   }
 
   void _onScroll() {
@@ -112,27 +81,40 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
           _buildHeader(),
           _buildGenreFilter(),
           Expanded(
-            child: RefreshIndicator(
-              onRefresh: () => _fetchPosts(refresh: true),
-              color: kPrimary,
-              child: _posts.isEmpty && !_isLoading
-                  ? _buildEmptyState()
-                  : ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
-                      itemCount: _posts.length + (_isLoading ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (index == _posts.length) {
-                          return const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(20),
-                              child: CircularProgressIndicator(color: kPrimary),
-                            ),
-                          );
-                        }
-                        return _buildPostCard(_posts[index]);
-                      },
-                    ),
+            child: Consumer<PostProvider>(
+              builder: (context, postProvider, child) {
+                if (postProvider.hasErrorAll && postProvider.allPosts.isEmpty) {
+                  return _buildErrorState(postProvider.errorAll!);
+                }
+
+                final posts = postProvider.allPosts;
+                final isLoading = postProvider.isLoadingAll;
+
+                return RefreshIndicator(
+                  onRefresh: () => _fetchPosts(refresh: true),
+                  color: kPrimary,
+                  child: posts.isEmpty && !isLoading
+                      ? _buildEmptyState()
+                      : ListView.builder(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
+                          itemCount: posts.length + (isLoading ? 1 : 0),
+                          itemBuilder: (context, index) {
+                            if (index == posts.length) {
+                              return const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(20),
+                                  child: CircularProgressIndicator(
+                                    color: kPrimary,
+                                  ),
+                                ),
+                              );
+                            }
+                            return _buildPostCard(posts[index]);
+                          },
+                        ),
+                );
+              },
             ),
           ),
         ],
@@ -212,11 +194,10 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
     );
   }
 
-  Widget _buildPostCard(dynamic post) {
-    final movie = post['movie'];
-    final user = post['user'];
-    final createdAt = DateTime.parse(post['created_at']);
-    final rating = double.tryParse(post['rating'].toString()) ?? 0.0;
+  Widget _buildPostCard(DiaryEntry post) {
+    final movie = post.movie;
+    final createdAt = post.createdAt;
+    final rating = post.rating;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -240,7 +221,7 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => PostDetailScreen(postId: post['id']),
+                  builder: (context) => PostDetailScreen(postId: post.id),
                 ),
               );
             },
@@ -251,23 +232,14 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
                 children: [
                   Row(
                     children: [
-                      CircleAvatar(
+                      const CircleAvatar(
                         radius: 18,
                         backgroundColor: kSurfaceHigh,
-                        backgroundImage: user['profile_image'] != null
-                            ? NetworkImage(
-                                ApiService.buildImageUrl(
-                                  user['profile_image'],
-                                )!,
-                              )
-                            : null,
-                        child: user['profile_image'] == null
-                            ? const Icon(
-                                Icons.person,
-                                size: 20,
-                                color: kOnSurfaceVariant,
-                              )
-                            : null,
+                        child: Icon(
+                          Icons.person,
+                          size: 20,
+                          color: kOnSurfaceVariant,
+                        ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -275,7 +247,7 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              user['nickname'],
+                              post.authorNickname,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
@@ -325,12 +297,12 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (movie['posterUrl'] != null)
+                      if ((movie.posterUrl ?? '').isNotEmpty)
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: CachedNetworkImage(
                             imageUrl: ApiService.buildImageUrl(
-                              movie['posterUrl'],
+                              movie.posterUrl,
                             )!,
                             width: 60,
                             height: 90,
@@ -343,7 +315,7 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              post['title'],
+                              post.title,
                               style: const TextStyle(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 16,
@@ -354,7 +326,7 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              movie['title'],
+                              movie.title,
                               style: TextStyle(
                                 color: kPrimary.withValues(alpha: 0.7),
                                 fontWeight: FontWeight.w600,
@@ -363,7 +335,7 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              post['content'] ?? '',
+                              post.content ?? '',
                               style: const TextStyle(
                                 color: kOnSurface,
                                 fontSize: 13,
@@ -389,7 +361,7 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '${post['likes_count']}',
+                        '${post.likeCount}',
                         style: const TextStyle(
                           fontSize: 13,
                           color: kOnSurfaceVariant,
@@ -403,7 +375,7 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '${post['comments']?.length ?? 0}',
+                        '${post.commentCount}',
                         style: const TextStyle(
                           fontSize: 13,
                           color: kOnSurfaceVariant,
@@ -436,6 +408,69 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: const BoxDecoration(
+                color: kSurfaceHigh,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.error_outline_rounded,
+                size: 30,
+                color: kOnSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: kBodyFont,
+                fontSize: 14,
+                color: kOnSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 24),
+            GestureDetector(
+              onTap: () => _fetchPosts(refresh: true),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                decoration: BoxDecoration(
+                  gradient: kPrimaryGradient,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: kPrimary.withValues(alpha: 0.25),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Text(
+                  '다시 시도',
+                  style: TextStyle(
+                    fontFamily: kHeadlineFont,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

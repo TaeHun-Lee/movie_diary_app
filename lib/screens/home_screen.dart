@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:movie_diary_app/component/home_content.dart';
 import 'package:movie_diary_app/constants.dart';
-import 'package:movie_diary_app/data/home_data.dart';
-import 'package:movie_diary_app/services/api_service.dart';
+import 'package:movie_diary_app/providers/home_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onSearchTap;
@@ -16,31 +16,16 @@ class HomeScreen extends StatefulWidget {
 }
 
 class HomeScreenState extends State<HomeScreen> {
-  late Future<HomeData> _homeDataFuture;
-
   @override
   void initState() {
     super.initState();
-    _homeDataFuture = _fetchHomeData();
-  }
-
-  Future<HomeData> _fetchHomeData() async {
-    try {
-      return await ApiService.fetchHomeData();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('홈 데이터를 불러오는데 실패했습니다.')));
-      }
-      rethrow;
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<HomeProvider>().fetchHomeData();
+    });
   }
 
   Future<void> refresh() async {
-    setState(() {
-      _homeDataFuture = _fetchHomeData();
-    });
+    await context.read<HomeProvider>().fetchHomeData(forceRefresh: true);
   }
 
   @override
@@ -48,17 +33,15 @@ class HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: kSurface,
       body: SafeArea(
-        child: FutureBuilder<HomeData>(
-          future: _homeDataFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
+        child: Consumer<HomeProvider>(
+          builder: (context, homeProvider, child) {
+            if (homeProvider.isLoading && homeProvider.homeData == null) {
               return _buildSkeletonLoading();
-            } else if (snapshot.hasError) {
+            } else if (homeProvider.homeData == null) {
               return _buildErrorState();
             } else {
-              final data = snapshot.data!;
               return HomeContent(
-                data: data,
+                data: homeProvider.homeData!,
                 onRefresh: refresh,
                 onSearchTap: widget.onSearchTap,
                 onDiaryTabTap: widget.onDiaryTabTap,
@@ -187,6 +170,9 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildErrorState() {
+    final homeProvider = context.read<HomeProvider>();
+    final message = homeProvider.errorMessage ?? '데이터를 불러오지 못했습니다.';
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(40),
@@ -207,23 +193,25 @@ class HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              '데이터를 불러오지 못했습니다.',
-              style: TextStyle(
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
                 fontFamily: kBodyFont,
                 fontSize: 14,
                 color: kOnSurfaceVariant,
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              '네트워크 연결을 확인해주세요.',
-              style: TextStyle(
-                fontFamily: kBodyFont,
-                fontSize: 12,
-                color: kOnSurfaceVariant.withValues(alpha: 0.6),
+            if (homeProvider.errorMessage == null)
+              Text(
+                '네트워크 연결을 확인해주세요.',
+                style: TextStyle(
+                  fontFamily: kBodyFont,
+                  fontSize: 12,
+                  color: kOnSurfaceVariant.withValues(alpha: 0.6),
+                ),
               ),
-            ),
             const SizedBox(height: 20),
             GestureDetector(
               onTap: refresh,

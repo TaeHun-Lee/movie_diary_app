@@ -12,7 +12,9 @@ class DiaryEntry {
   final DateTime createdAt;
   final String authorNickname;
   final int likeCount;
+  final int commentCount;
   final bool isSpoiler;
+  final bool isLiked;
   final List<String> images;
 
   DiaryEntry({
@@ -27,7 +29,9 @@ class DiaryEntry {
     required this.createdAt,
     required this.authorNickname,
     required this.likeCount,
+    required this.commentCount,
     required this.isSpoiler,
+    this.isLiked = false,
     required this.images,
   });
 
@@ -47,13 +51,71 @@ class DiaryEntry {
       movie: Movie.fromJson(json['movie'] ?? {}),
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
       authorNickname: json['user']?['nickname'] ?? 'Unknown',
-      likeCount: (json['likes'] as List?)?.length ?? 0,
+      likeCount: json['likes_count'] ?? (json['likes'] as List?)?.length ?? 0,
+      commentCount: (json['comments'] as List?)?.length ?? 0,
       isSpoiler: json['is_spoiler'] ?? false,
+      isLiked: json['is_liked'] ?? false,
       images:
           (json['photos'] as List?)
               ?.map((p) => p['photo_url'] as String)
               .toList() ??
           [],
     );
+  }
+
+  DiaryEntry copyWith({
+    int? id,
+    String? docId,
+    String? title,
+    String? content,
+    String? place,
+    String? watchedDate,
+    double? rating,
+    Movie? movie,
+    DateTime? createdAt,
+    String? authorNickname,
+    int? likeCount,
+    int? commentCount,
+    bool? isSpoiler,
+    bool? isLiked,
+    List<String>? images,
+  }) {
+    return DiaryEntry(
+      id: id ?? this.id,
+      docId: docId ?? this.docId,
+      title: title ?? this.title,
+      content: content ?? this.content,
+      place: place ?? this.place,
+      watchedDate: watchedDate ?? this.watchedDate,
+      rating: rating ?? this.rating,
+      movie: movie ?? this.movie,
+      createdAt: createdAt ?? this.createdAt,
+      authorNickname: authorNickname ?? this.authorNickname,
+      likeCount: likeCount ?? this.likeCount,
+      commentCount: commentCount ?? this.commentCount,
+      isSpoiler: isSpoiler ?? this.isSpoiler,
+      isLiked: isLiked ?? this.isLiked,
+      images: images ?? this.images,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'movie_docId': docId,
+      'title': title,
+      'content': content,
+      'place': place,
+      'watched_at': watchedDate,
+      'rating': rating,
+      'movie': movie.toJson(),
+      'created_at': createdAt.toIso8601String(),
+      'user': {'nickname': authorNickname},
+      'likes_count': likeCount,
+      'comments': List.generate(commentCount, (_) => {}),
+      'is_spoiler': isSpoiler,
+      'is_liked': isLiked,
+      'photos': images.map((url) => {'photo_url': url}).toList(),
+    };
   }
 }
