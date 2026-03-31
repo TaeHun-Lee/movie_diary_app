@@ -11,6 +11,7 @@ import 'package:movie_diary_app/screens/profile_edit_screen.dart';
 import 'package:movie_diary_app/screens/account_settings_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:movie_diary_app/constants.dart';
+import 'package:movie_diary_app/component/custom_app_bar.dart';
 
 class MyPageScreen extends StatefulWidget {
   const MyPageScreen({super.key});
@@ -48,43 +49,47 @@ class _MyPageScreenState extends State<MyPageScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kSurface,
-      body: FutureBuilder<Map<String, dynamic>>(
-        future: _loadData,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: kPrimary),
-            );
-          } else if (snapshot.hasError) {
-            return const Center(
-              child: Text(
-                '데이터를 불러오는데 실패했습니다.',
-                style: TextStyle(fontFamily: kBodyFont, color: kError),
-              ),
-            );
-          } else if (snapshot.hasData) {
-            _homeData = snapshot.data!['homeData'];
-            _myPosts = snapshot.data!['myPosts'];
-            return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildProfileSection(),
-                  const SizedBox(height: 32),
-                  _buildStatsSection(),
-                  const SizedBox(height: 48),
-                  _buildMenuSection(),
-                ],
-              ),
-            );
-          } else {
-            return const Center(
-              child: Text('데이터가 없습니다.',
-                  style: TextStyle(fontFamily: kBodyFont, color: kOnSurfaceVariant)),
-            );
-          }
-        },
+      appBar: const CustomAppBar(),
+      body: SafeArea(
+        top: false,
+        child: FutureBuilder<Map<String, dynamic>>(
+          future: _loadData,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(color: kPrimary),
+              );
+            } else if (snapshot.hasError) {
+              return const Center(
+                child: Text(
+                  '데이터를 불러오는데 실패했습니다.',
+                  style: TextStyle(fontFamily: kBodyFont, color: kError),
+                ),
+              );
+            } else if (snapshot.hasData) {
+              _homeData = snapshot.data!['homeData'];
+              _myPosts = snapshot.data!['myPosts'];
+              return SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildProfileSection(),
+                    const SizedBox(height: 32),
+                    _buildStatsSection(),
+                    const SizedBox(height: 48),
+                    _buildMenuSection(),
+                  ],
+                ),
+              );
+            } else {
+              return const Center(
+                child: Text('데이터가 없습니다.',
+                    style: TextStyle(fontFamily: kBodyFont, color: kOnSurfaceVariant)),
+              );
+            }
+          },
+        ),
       ),
     );
   }

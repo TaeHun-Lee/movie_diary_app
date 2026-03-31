@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:movie_diary_app/component/custom_app_bar.dart';
 import 'package:movie_diary_app/constants.dart';
 import 'package:movie_diary_app/data/movie.dart';
 import 'package:movie_diary_app/screens/movie_detail_screen.dart';
@@ -65,19 +66,26 @@ class MovieSearchScreenState extends State<MovieSearchScreen> with SingleTickerP
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _buildTabBar(),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildMovieSearchTab(),
-              const CommunityFeedScreen(),
-            ],
-          ),
+    return Scaffold(
+      backgroundColor: kSurface,
+      appBar: const CustomAppBar(),
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            _buildTabBar(),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildMovieSearchTab(),
+                  const CommunityFeedScreen(),
+                ],
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 

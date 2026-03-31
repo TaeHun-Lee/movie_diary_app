@@ -1,11 +1,13 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:movie_diary_app/constants.dart';
 import 'package:movie_diary_app/screens/home_screen.dart';
 import 'package:movie_diary_app/screens/movie_search_screen.dart';
 import 'package:movie_diary_app/screens/my_diary_list_screen.dart';
 import 'package:movie_diary_app/screens/my_page_screen.dart';
-import 'package:movie_diary_app/component/custom_app_bar.dart';
+import 'package:movie_diary_app/component/custom_drawer.dart';
+import 'package:movie_diary_app/providers/navigation_provider.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -15,45 +17,165 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _selectedIndex = 0;
+  // 메인 스크린 고유의 ScaffoldKey 생성
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  
+  // 캐싱을 위한 필드
+  late NavigationProvider _navProvider;
+
+  // 각 탭의 내비게이션 상태를 관리하기 위한 키
+  final List<GlobalKey<NavigatorState>> _navigatorKeys = [
+    GlobalKey<NavigatorState>(),
+    GlobalKey<NavigatorState>(),
+    GlobalKey<NavigatorState>(),
+    GlobalKey<NavigatorState>(),
+  ];
+
   final GlobalKey<HomeScreenState> _homeKey = GlobalKey();
   final GlobalKey<MovieSearchScreenState> _searchKey = GlobalKey();
 
-  List<Widget> get _pages => [
-        HomeScreen(
-          key: _homeKey,
-          onSearchTap: () => _onItemTapped(1),
-          onDiaryTabTap: () => _onItemTapped(2),
-        ),
-        MovieSearchScreen(
-          key: _searchKey,
-          onBack: () => _onItemTapped(0),
-        ),
-        const MyDiaryListScreen(),
-        const MyPageScreen(),
-      ];
+  @override
+  void initState() {
+    super.initState();
+    // initState에서 프로바이더의 노티파이어를 리스너로 등록
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _navProvider = Provider.of<NavigationProvider>(context, listen: false);
+        _navProvider.openDrawerNotifier.addListener(_onOpenDrawerEvent);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    // 리스너 해제
+    _navProvider.openDrawerNotifier.removeListener(_onOpenDrawerEvent);
+    super.dispose();
+  }
+
+  // Drawer 열기 이벤트 처리
+  void _onOpenDrawerEvent() {
+    if (mounted && _scaffoldKey.currentState != null) {
+      _scaffoldKey.currentState!.openDrawer();
+    }
+  }
 
   void _onItemTapped(int index) {
-    if (_selectedIndex == index && index == 0) {
-      _homeKey.currentState?.refresh();
+    final navProvider = Provider.of<NavigationProvider>(context, listen: false);
+    if (navProvider.selectedIndex == index) {
+      // 이미 선택된 탭을 다시 누르면 해당 탭의 루트로 돌아가거나 새로고침
+      final navigatorState = _navigatorKeys[index].currentState;
+      if (navigatorState != null && navigatorState.canPop()) {
+        navigatorState.popUntil((route) => route.isFirst);
+      } else {
+        if (index == 0) {
+          _homeKey.currentState?.refresh();
+        } else if (index == 1) {
+          _searchKey.currentState?.reset();
+        }
+      }
+    } else {
+      navProvider.setSelectedIndex(index);
     }
-    if (index == 1) {
-      _searchKey.currentState?.reset();
-    }
-    setState(() => _selectedIndex = index);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kSurface,
-      appBar: const CustomAppBar(),
-      body: IndexedStack(index: _selectedIndex, children: _pages),
-      extendBody: true, // body가 네비게이션 바 아래까지 확장
-      bottomNavigationBar: _GlassNavBar(
-        selectedIndex: _selectedIndex,
-        onTap: _onItemTapped,
+    final navProvider = Provider.of<NavigationProvider>(context);
+    final selectedIndex = navProvider.selectedIndex;
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+
+        if (selectedIndex < 0 || selectedIndex >= _navigatorKeys.length) return;
+
+        final NavigatorState? currentNavigator =
+            _navigatorKeys[selectedIndex].currentState;
+        if (currentNavigator != null && currentNavigator.canPop()) {
+          // 현재 탭에 뒤로 갈 스택이 있다면 pop
+          currentNavigator.pop();
+        } else {
+          // 더 이상 pop 할 스택이 없고 홈 탭이 아니라면 홈 탭으로 이동
+          if (selectedIndex != 0) {
+            navProvider.setSelectedIndex(0);
+          } else {
+            // 홈 탭에서도 뒤로가기를 누르면 앱 종료 처리를 위한 pop 시도
+            if (context.mounted) {
+              final rootNavigator = Navigator.of(context);
+              if (rootNavigator.canPop()) {
+                rootNavigator.pop();
+              }
+            }
+          }
+        }
+      },
+      child: Scaffold(
+        key: _scaffoldKey, // 고유한 로컬 Key
+        backgroundColor: kSurface,
+        drawer: const CustomDrawer(),
+        body: IndexedStack(
+          index: selectedIndex,
+          children: [
+            TabNavigator(
+              navigatorKey: _navigatorKeys[0],
+              rootPage: HomeScreen(
+                key: _homeKey,
+                onSearchTap: () => _onItemTapped(1),
+                onDiaryTabTap: () => _onItemTapped(2),
+              ),
+            ),
+            TabNavigator(
+              navigatorKey: _navigatorKeys[1],
+              rootPage: MovieSearchScreen(
+                key: _searchKey,
+                onBack: () => _onItemTapped(0),
+              ),
+            ),
+            TabNavigator(
+              navigatorKey: _navigatorKeys[2],
+              rootPage: const MyDiaryListScreen(),
+            ),
+            TabNavigator(
+              navigatorKey: _navigatorKeys[3],
+              rootPage: const MyPageScreen(),
+            ),
+          ],
+        ),
+        extendBody: true,
+        bottomNavigationBar: _GlassNavBar(
+          selectedIndex: selectedIndex,
+          onTap: _onItemTapped,
+        ),
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// Tab Navigator
+// ─────────────────────────────────────────────
+class TabNavigator extends StatelessWidget {
+  final GlobalKey<NavigatorState> navigatorKey;
+  final Widget rootPage;
+
+  const TabNavigator({
+    super.key,
+    required this.navigatorKey,
+    required this.rootPage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Navigator(
+      key: navigatorKey,
+      onGenerateRoute: (routeSettings) {
+        return MaterialPageRoute(
+          builder: (context) => rootPage,
+          settings: routeSettings,
+        );
+      },
     );
   }
 }
@@ -65,16 +187,29 @@ class _GlassNavBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onTap;
 
-  const _GlassNavBar({
-    required this.selectedIndex,
-    required this.onTap,
-  });
+  const _GlassNavBar({required this.selectedIndex, required this.onTap});
 
   static const List<_NavItem> _items = [
-    _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: '홈'),
-    _NavItem(icon: Icons.search_outlined, activeIcon: Icons.search_rounded, label: '탐색'),
-    _NavItem(icon: Icons.auto_stories_outlined, activeIcon: Icons.auto_stories_rounded, label: '다이어리'),
-    _NavItem(icon: Icons.person_outline_rounded, activeIcon: Icons.person_rounded, label: '프로필'),
+    _NavItem(
+      icon: Icons.home_outlined,
+      activeIcon: Icons.home_rounded,
+      label: '홈',
+    ),
+    _NavItem(
+      icon: Icons.search_outlined,
+      activeIcon: Icons.search_rounded,
+      label: '탐색',
+    ),
+    _NavItem(
+      icon: Icons.auto_stories_outlined,
+      activeIcon: Icons.auto_stories_rounded,
+      label: '다이어리',
+    ),
+    _NavItem(
+      icon: Icons.person_outline_rounded,
+      activeIcon: Icons.person_rounded,
+      label: '프로필',
+    ),
   ];
 
   @override
@@ -88,6 +223,10 @@ class _GlassNavBar extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.62),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border.all(
+              color: kOutlineVariant.withValues(alpha: 0.15),
+              width: 1,
+            ),
             boxShadow: [
               BoxShadow(
                 color: kSurfaceDim.withValues(alpha: 0.25),
@@ -175,8 +314,7 @@ class _NavBarItem extends StatelessWidget {
               style: TextStyle(
                 fontFamily: kBodyFont,
                 fontSize: 11,
-                fontWeight:
-                    selected ? FontWeight.w600 : FontWeight.w400,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                 color: selected ? kPrimary : kOnSurfaceVariant,
               ),
             ),

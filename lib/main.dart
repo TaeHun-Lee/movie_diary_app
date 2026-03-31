@@ -16,6 +16,7 @@ import 'package:movie_diary_app/constants.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'package:movie_diary_app/providers/navigation_provider.dart';
 import 'package:movie_diary_app/services/connectivity_service.dart';
 
 Future<void> main() async {
@@ -39,6 +40,7 @@ Future<void> main() async {
           legacy_provider.ChangeNotifierProvider(create: (_) => Auth()),
           legacy_provider.ChangeNotifierProvider(create: (_) => PostProvider()),
           legacy_provider.ChangeNotifierProvider(create: (_) => HomeProvider()),
+          legacy_provider.ChangeNotifierProvider(create: (_) => NavigationProvider()),
           legacy_provider.ChangeNotifierProvider(
             create: (_) => DiaryProvider(),
           ),

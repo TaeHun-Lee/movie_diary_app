@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:movie_diary_app/component/custom_app_bar.dart';
 import 'package:movie_diary_app/constants.dart';
 import 'package:movie_diary_app/data/diary_entry.dart';
 import 'package:movie_diary_app/screens/diary_write_screen.dart';
@@ -31,8 +32,6 @@ class _MyDiaryListScreenState extends State<MyDiaryListScreen> {
   @override
   void initState() {
     super.initState();
-    // Default to last 30 days or similar? 
-    // todo.md says use current date for range but in a light theme.
     final now = DateTime.now();
     _selectedDateRange = DateTimeRange(
       start: now.subtract(const Duration(days: 30)),
@@ -80,37 +79,31 @@ class _MyDiaryListScreenState extends State<MyDiaryListScreen> {
   void _applyFilters() {
     setState(() {
       _filteredPosts = _allPosts.where((post) {
-        // 1. Title Search
         final matchesTitle =
             post.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
             post.movie.title.toLowerCase().contains(_searchQuery.toLowerCase());
 
-        // 2. Genre Filter
         bool matchesGenre = true;
         if (_selectedGenres.isNotEmpty) {
           final movieGenres = post.movie.genres;
           matchesGenre = _selectedGenres.any((sg) => movieGenres.contains(sg));
         }
 
-        // 3. Date Range Filter
         bool matchesDate = true;
         if (_selectedDateRange != null) {
           DateTime? watchedDate;
           try {
-            // "2023.01.01" 또는 "2023-01-01" 등의 형식을 표준 ISO 형식으로 변환 시도
             String cleanDate = post.watchedDate
                 .replaceAll('.', '-')
                 .replaceAll('/', '-')
                 .trim();
-            // 연속된 공백 제거
-            cleanDate = cleanDate.split(' ').first; 
+            cleanDate = cleanDate.split(' ').first;
             watchedDate = DateTime.tryParse(cleanDate);
           } catch (_) {}
 
           if (watchedDate != null) {
             final start = _selectedDateRange!.start;
             final end = _selectedDateRange!.end;
-
             final dateOnly = DateTime(
               watchedDate.year,
               watchedDate.month,
@@ -123,11 +116,9 @@ class _MyDiaryListScreenState extends State<MyDiaryListScreen> {
                 dateOnly.compareTo(startOnly) >= 0 &&
                 dateOnly.compareTo(endOnly) <= 0;
           } else {
-            // 날짜 정보가 없거나 파싱 실패 시 기본적으로 제외 (또는 포함 여부 결정)
-            matchesDate = false; 
+            matchesDate = false;
           }
         }
-
         return matchesTitle && matchesGenre && matchesDate;
       }).toList();
     });
@@ -214,423 +205,436 @@ class _MyDiaryListScreenState extends State<MyDiaryListScreen> {
 
     return Scaffold(
       backgroundColor: kSurface,
-      body: Column(
-        children: [
-          // Header & Search Area
-          Container(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-            color: kSurface,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "My Movie Archive",
-                  style: TextStyle(
-                    fontFamily: kHeadlineFont,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    color: kOnSurface,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                // Title Search (Neuromorphic Inset style)
-                Container(
-                  decoration: BoxDecoration(
-                    color: kSurfaceHigh,
-                    borderRadius: BorderRadius.circular(kRadiusL),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.white.withValues(alpha: 0.8),
-                        offset: const Offset(-2, -2),
-                        blurRadius: 4,
-                      ),
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        offset: const Offset(2, 2),
-                        blurRadius: 4,
-                      ),
-                    ],
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    style: const TextStyle(
+      appBar: const CustomAppBar(),
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+              color: kSurface,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "My Movie Archive",
+                    style: TextStyle(
+                      fontFamily: kHeadlineFont,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
                       color: kOnSurface,
-                      fontFamily: kBodyFont,
-                      fontSize: 15,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: '제목 검색',
-                      hintStyle: TextStyle(
-                        color: kOnSurfaceVariant.withValues(alpha: 0.5),
-                        fontFamily: kBodyFont,
-                      ),
-                      prefixIcon: const Icon(
-                        Icons.search_rounded,
-                        color: kOnSurfaceVariant,
-                        size: 22,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-
-                // Date Range Picker Row
-                InkWell(
-                  onTap: () => _selectDateRange(context),
-                  borderRadius: BorderRadius.circular(kRadiusM),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
+                  const SizedBox(height: 20),
+                  Container(
                     decoration: BoxDecoration(
-                      color: kSurfaceLowest,
-                      borderRadius: BorderRadius.circular(kRadiusM),
+                      color: kSurfaceHigh,
+                      borderRadius: BorderRadius.circular(kRadiusL),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.03),
-                          offset: const Offset(0, 4),
-                          blurRadius: 10,
+                          color: Colors.white.withValues(alpha: 0.8),
+                          offset: const Offset(-2, -2),
+                          blurRadius: 4,
+                        ),
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          offset: const Offset(2, 2),
+                          blurRadius: 4,
                         ),
                       ],
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.calendar_today_rounded,
-                          color: kPrimary,
-                          size: 18,
+                    child: TextField(
+                      controller: _searchController,
+                      style: const TextStyle(
+                        color: kOnSurface,
+                        fontFamily: kBodyFont,
+                        fontSize: 15,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: '제목 검색',
+                        hintStyle: TextStyle(
+                          color: kOnSurfaceVariant.withValues(alpha: 0.5),
+                          fontFamily: kBodyFont,
                         ),
-                        const SizedBox(width: 12),
-                        if (_selectedDateRange != null) ...[
-                          Text(
-                            "${_selectedDateRange!.start.year}.${_selectedDateRange!.start.month.toString().padLeft(2, '0')}.${_selectedDateRange!.start.day.toString().padLeft(2, '0')}",
-                            style: const TextStyle(
-                              color: kOnSurface,
-                              fontFamily: kHeadlineFont,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
+                        prefixIcon: const Icon(
+                          Icons.search_rounded,
+                          color: kOnSurfaceVariant,
+                          size: 22,
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  InkWell(
+                    onTap: () => _selectDateRange(context),
+                    borderRadius: BorderRadius.circular(kRadiusM),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: kSurfaceLowest,
+                        borderRadius: BorderRadius.circular(kRadiusM),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            offset: const Offset(0, 4),
+                            blurRadius: 10,
                           ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            child: Text(
-                              "~",
-                              style: TextStyle(
-                                color: kOnSurfaceVariant.withValues(alpha: 0.5),
-                                fontWeight: FontWeight.bold,
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.calendar_today_rounded,
+                            color: kPrimary,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 12),
+                          if (_selectedDateRange != null) ...[
+                            Text(
+                              "${_selectedDateRange!.start.year}.${_selectedDateRange!.start.month.toString().padLeft(2, '0')}.${_selectedDateRange!.start.day.toString().padLeft(2, '0')}",
+                              style: const TextStyle(
+                                color: kOnSurface,
+                                fontFamily: kHeadlineFont,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
                               ),
                             ),
-                          ),
-                          Text(
-                            "${_selectedDateRange!.end.year}.${_selectedDateRange!.end.month.toString().padLeft(2, '0')}.${_selectedDateRange!.end.day.toString().padLeft(2, '0')}",
-                            style: const TextStyle(
-                              color: kOnSurface,
-                              fontFamily: kHeadlineFont,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                              ),
+                              child: Text(
+                                "~",
+                                style: TextStyle(
+                                  color: kOnSurfaceVariant.withValues(
+                                    alpha: 0.5,
+                                  ),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
+                            Text(
+                              "${_selectedDateRange!.end.year}.${_selectedDateRange!.end.month.toString().padLeft(2, '0')}.${_selectedDateRange!.end.day.toString().padLeft(2, '0')}",
+                              style: const TextStyle(
+                                color: kOnSurface,
+                                fontFamily: kHeadlineFont,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ] else ...[
+                            const Text(
+                              "날짜 범위 선택",
+                              style: TextStyle(
+                                color: kOnSurfaceVariant,
+                                fontFamily: kHeadlineFont,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (availableGenres.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: availableGenres.map((genre) {
+                          final isSelected = _selectedGenres.contains(genre);
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8.0),
+                            child: FilterChip(
+                              label: Text(genre),
+                              selected: isSelected,
+                              onSelected: (_) => _toggleGenre(genre),
+                              backgroundColor: kSurfaceHigh,
+                              selectedColor: kSecondaryContainer,
+                              checkmarkColor: kOnSecondaryContainer,
+                              labelStyle: TextStyle(
+                                color: isSelected
+                                    ? kOnSecondaryContainer
+                                    : kOnSurfaceVariant,
+                                fontFamily: kBodyFont,
+                                fontSize: 13,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                                side: BorderSide.none,
+                              ),
+                              showCheckmark: isSelected,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Expanded(
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: kPrimary),
+                    )
+                  : _errorMessage != null
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.error_outline_rounded,
+                            color: kSurfaceDim,
+                            size: 48,
                           ),
-                        ] else ...[
-                          const Text(
-                            "날짜 범위 선택",
-                            style: TextStyle(
+                          const SizedBox(height: 16),
+                          Text(
+                            _errorMessage!,
+                            style: const TextStyle(
                               color: kOnSurfaceVariant,
-                              fontFamily: kHeadlineFont,
-                              fontWeight: FontWeight.w600,
+                              fontFamily: kBodyFont,
                             ),
                           ),
                         ],
-                      ],
-                    ),
-                  ),
-                ),
-                if (availableGenres.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: availableGenres.map((genre) {
-                        final isSelected = _selectedGenres.contains(genre);
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: FilterChip(
-                            label: Text(genre),
-                            selected: isSelected,
-                            onSelected: (_) => _toggleGenre(genre),
-                            backgroundColor: kSurfaceHigh,
-                            selectedColor: kSecondaryContainer,
-                            checkmarkColor: kOnSecondaryContainer,
-                            labelStyle: TextStyle(
-                              color: isSelected
-                                  ? kOnSecondaryContainer
-                                  : kOnSurfaceVariant,
+                      ),
+                    )
+                  : _filteredPosts.isEmpty
+                  ? const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.movie_filter_rounded,
+                            color: kSurfaceDim,
+                            size: 64,
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            '검색 결과가 없습니다.',
+                            style: TextStyle(
+                              color: kOnSurfaceVariant,
                               fontFamily: kBodyFont,
-                              fontSize: 13,
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
+                              fontSize: 16,
                             ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 8,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                              side: BorderSide.none,
-                            ),
-                            showCheckmark: isSelected,
                           ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          // List Area
-          Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(color: kPrimary),
-                  )
-                : _errorMessage != null
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.error_outline_rounded,
-                          color: kSurfaceDim,
-                          size: 48,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _errorMessage!,
-                          style: const TextStyle(
-                            color: kOnSurfaceVariant,
-                            fontFamily: kBodyFont,
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+                      itemCount: _filteredPosts.length,
+                      itemBuilder: (context, index) {
+                        final post = _filteredPosts[index];
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: kSurfaceLowest,
+                            borderRadius: BorderRadius.circular(kRadiusXL),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.04),
+                                offset: const Offset(0, 6),
+                                blurRadius: 12,
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
-                  )
-                : _filteredPosts.isEmpty
-                ? const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.movie_filter_rounded,
-                          color: kSurfaceDim,
-                          size: 64,
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          '검색 결과가 없습니다.',
-                          style: TextStyle(
-                            color: kOnSurfaceVariant,
-                            fontFamily: kBodyFont,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-                    itemCount: _filteredPosts.length,
-                    itemBuilder: (context, index) {
-                      final post = _filteredPosts[index];
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          color: kSurfaceLowest,
-                          borderRadius: BorderRadius.circular(kRadiusXL),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.04),
-                              offset: const Offset(0, 6),
-                              blurRadius: 12,
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(kRadiusXL),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: () async {
-                                final result = await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        DiaryWriteScreen(entryToEdit: post),
-                                  ),
-                                );
-                                if (result == true) {
-                                  _loadPosts();
-                                }
-                              },
-                              child: Padding(
-                                padding: const EdgeInsets.all(12),
-                                child: Row(
-                                  children: [
-                                    // Poster Image (Cached)
-                                    Hero(
-                                      tag: 'post_${post.id}',
-                                      child: Container(
-                                        width: 80,
-                                        height: 110,
-                                        decoration: BoxDecoration(
-                                          borderRadius:
-                                              BorderRadius.circular(kRadiusL),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.black
-                                                  .withValues(alpha: 0.1),
-                                              offset: const Offset(0, 2),
-                                              blurRadius: 4,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(kRadiusXL),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () async {
+                                  final result = await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          DiaryWriteScreen(entryToEdit: post),
+                                    ),
+                                  );
+                                  if (result == true) {
+                                    _loadPosts();
+                                  }
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Row(
+                                    children: [
+                                      Hero(
+                                        tag: 'post_${post.id}',
+                                        child: Container(
+                                          width: 80,
+                                          height: 110,
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(
+                                              kRadiusL,
                                             ),
-                                          ],
-                                        ),
-                                        child: ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(kRadiusL),
-                                          child: post.movie.posterUrl != null
-                                              ? CachedNetworkImage(
-                                                  imageUrl:
-                                                      ApiService.buildImageUrl(post.movie.posterUrl)!,
-                                                  fit: BoxFit.cover,
-                                                  placeholder:
-                                                      (context, url) =>
-                                                          Shimmer.fromColors(
-                                                    baseColor: kSurfaceHigh,
-                                                    highlightColor:
-                                                        kSurfaceLowest,
-                                                    child: Container(
-                                                      color: kSurfaceHigh,
-                                                    ),
-                                                  ),
-                                                  errorWidget:
-                                                      (context, url, error) =>
-                                                          Container(
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withValues(
+                                                  alpha: 0.1,
+                                                ),
+                                                offset: const Offset(0, 2),
+                                                blurRadius: 4,
+                                              ),
+                                            ],
+                                          ),
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              kRadiusL,
+                                            ),
+                                            child: post.movie.posterUrl != null
+                                                ? CachedNetworkImage(
+                                                    imageUrl:
+                                                        ApiService.buildImageUrl(
+                                                          post.movie.posterUrl,
+                                                        )!,
+                                                    fit: BoxFit.cover,
+                                                    placeholder:
+                                                        (
+                                                          context,
+                                                          url,
+                                                        ) => Shimmer.fromColors(
+                                                          baseColor:
+                                                              kSurfaceHigh,
+                                                          highlightColor:
+                                                              kSurfaceLowest,
+                                                          child: Container(
+                                                            color: kSurfaceHigh,
+                                                          ),
+                                                        ),
+                                                    errorWidget:
+                                                        (
+                                                          context,
+                                                          url,
+                                                          error,
+                                                        ) => Container(
+                                                          color: kSurfaceHigh,
+                                                          child: const Icon(
+                                                            Icons.movie_rounded,
+                                                            color: kSurfaceDim,
+                                                          ),
+                                                        ),
+                                                  )
+                                                : Container(
                                                     color: kSurfaceHigh,
                                                     child: const Icon(
                                                       Icons.movie_rounded,
                                                       color: kSurfaceDim,
                                                     ),
                                                   ),
-                                                )
-                                              : Container(
-                                                  color: kSurfaceHigh,
-                                                  child: const Icon(
-                                                    Icons.movie_rounded,
-                                                    color: kSurfaceDim,
-                                                  ),
-                                                ),
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    // Info Area
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            post.title,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              fontFamily: kHeadlineFont,
-                                              fontSize: 17,
-                                              fontWeight: FontWeight.bold,
-                                              color: kOnSurface,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            post.movie.title,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              fontFamily: kBodyFont,
-                                              fontSize: 14,
-                                              color: kOnSurfaceVariant,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 12),
-                                          Row(
-                                            children: [
-                                              Text(
-                                                post.watchedDate,
-                                                style: TextStyle(
-                                                  fontFamily: kBodyFont,
-                                                  fontSize: 12,
-                                                  color: kOnSurfaceVariant
-                                                      .withValues(alpha: 0.7),
-                                                ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              post.title,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontFamily: kHeadlineFont,
+                                                fontSize: 17,
+                                                fontWeight: FontWeight.bold,
+                                                color: kOnSurface,
                                               ),
-                                              const Spacer(),
-                                              // Rating Badge
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                  horizontal: 10,
-                                                  vertical: 4,
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              post.movie.title,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontFamily: kBodyFont,
+                                                fontSize: 14,
+                                                color: kOnSurfaceVariant,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            Row(
+                                              children: [
+                                                Text(
+                                                  post.watchedDate,
+                                                  style: TextStyle(
+                                                    fontFamily: kBodyFont,
+                                                    fontSize: 12,
+                                                    color: kOnSurfaceVariant
+                                                        .withValues(alpha: 0.7),
+                                                  ),
                                                 ),
-                                                decoration: BoxDecoration(
-                                                  gradient: kPrimaryGradient,
-                                                  borderRadius:
-                                                      BorderRadius.circular(20),
-                                                ),
-                                                child: Row(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    const Icon(
-                                                      Icons.star_rounded,
-                                                      color: Colors.white,
-                                                      size: 14,
-                                                    ),
-                                                    const SizedBox(width: 4),
-                                                    Text(
-                                                      post.rating.toString(),
-                                                      style: const TextStyle(
-                                                        color: Colors.white,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        fontSize: 12,
+                                                const Spacer(),
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 4,
                                                       ),
-                                                    ),
-                                                  ],
+                                                  decoration: BoxDecoration(
+                                                    gradient: kPrimaryGradient,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          20,
+                                                        ),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      const Icon(
+                                                        Icons.star_rounded,
+                                                        color: Colors.white,
+                                                        size: 14,
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        post.rating.toString(),
+                                                        style: const TextStyle(
+                                                          color: Colors.white,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 12,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
+                                              ],
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -22,7 +22,7 @@ class Movie {
   });
 
   factory Movie.fromJson(Map<String, dynamic> json) {
-    final poster = json['poster'];
+    final poster = json['poster'] ?? json['posterUrl'];
     final stills = json['stills'];
     final genresList = json['genres'] as List<dynamic>? ?? [];
 
@@ -35,6 +35,15 @@ class Movie {
           .toList();
     }
 
+    // Backend uses release_date (snake_case), some DTOs use releaseDate (camelCase)
+    // KMDB API results might use prodYear
+    String rDate = json['release_date'] ?? json['releaseDate'] ?? json['prodYear'] ?? '';
+    
+    // If it's an ISO string from backend (e.g. 2023-10-27T00:00:00.000Z), take only the date part
+    if (rDate.contains('T')) {
+      rDate = rDate.split('T').first;
+    }
+
     return Movie(
       docId: json['docId'] ?? '',
       title: (json['title'] as String? ?? '')
@@ -44,7 +53,7 @@ class Movie {
       summary: json['plot'] ?? '',
       posterUrl: ApiService.buildImageUrl(poster),
       stillCutUrls: processedStills,
-      releaseDate: json['releaseDate'] ?? json['prodYear'] ?? '',
+      releaseDate: rDate,
       genres: genresList.map((e) {
         if (e is Map) {
           return e['name'].toString();

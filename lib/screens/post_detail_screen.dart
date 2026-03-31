@@ -187,6 +187,14 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   }
 
   Widget _buildMovieCard(dynamic movie) {
+    if (movie == null) return const SizedBox.shrink();
+    
+    final title = movie['title'] ?? '제목 없음';
+    final director = movie['director'] ?? '감독 정보 없음';
+    final releaseDate = movie['release_date'] ?? movie['releaseDate'] ?? '';
+    final displayDate = releaseDate.length >= 4 ? releaseDate.substring(0, 4) : '연도 미상';
+    final posterUrl = movie['poster'] ?? movie['posterUrl'];
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -195,14 +203,20 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       ),
       child: Row(
         children: [
-          if (movie['posterUrl'] != null)
+          if (posterUrl != null)
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: CachedNetworkImage(
-                imageUrl: ApiService.buildImageUrl(movie['posterUrl'])!,
+                imageUrl: ApiService.buildImageUrl(posterUrl)!,
                 width: 50,
                 height: 75,
                 fit: BoxFit.cover,
+                errorWidget: (context, url, error) => Container(
+                  width: 50,
+                  height: 75,
+                  color: kSurfaceHigh,
+                  child: const Icon(Icons.movie_filter, color: kOnSurfaceVariant),
+                ),
               ),
             ),
           const SizedBox(width: 12),
@@ -211,12 +225,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  movie['title'],
+                  title,
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 Text(
-                  '${movie['director']} | ${movie['releaseDate'].substring(0, 4)}',
-                  style: TextStyle(fontSize: 13, color: kOnSurfaceVariant),
+                  '$director | $displayDate',
+                  style: const TextStyle(fontSize: 13, color: kOnSurfaceVariant),
                 ),
               ],
             ),

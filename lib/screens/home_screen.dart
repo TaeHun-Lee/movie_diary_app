@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:movie_diary_app/component/home_content.dart';
+import 'package:movie_diary_app/component/custom_app_bar.dart';
 import 'package:movie_diary_app/constants.dart';
 import 'package:movie_diary_app/providers/home_provider.dart';
 
@@ -32,7 +33,9 @@ class HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kSurface,
+      appBar: const CustomAppBar(),
       body: SafeArea(
+        top: false, // AppBar가 이미 SafeArea를 어느 정도 처리하므로 body는 위로 확장 가능
         child: Consumer<HomeProvider>(
           builder: (context, homeProvider, child) {
             if (homeProvider.isLoading && homeProvider.homeData == null) {

@@ -120,24 +120,57 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── 헤더 ──────────────────────────────
-                const Text(
-                  '계정 만들기',
-                  style: TextStyle(
-                    fontFamily: kHeadlineFont,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    color: kOnSurface,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '영화 다이어리를 시작해보세요',
-                  style: TextStyle(
-                    fontFamily: kBodyFont,
-                    fontSize: 14,
-                    color: kOnSurfaceVariant.withValues(alpha: 0.8),
-                  ),
+                // ── 로고 & 헤더 ──────────────────────
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: kSurfaceHigh,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: kSurfaceDim.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(2, 2),
+                          ),
+                        ],
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Image.asset(
+                          'assets/images/app_logo.png',
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '계정 만들기',
+                          style: TextStyle(
+                            fontFamily: kHeadlineFont,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: kOnSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '영화 다이어리를 시작해보세요',
+                          style: TextStyle(
+                            fontFamily: kBodyFont,
+                            fontSize: 13,
+                            color: kOnSurfaceVariant.withValues(alpha: 0.8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 32),
 

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:movie_diary_app/constants.dart';
 import 'package:movie_diary_app/data/home_data.dart';
 import 'package:movie_diary_app/services/api_service.dart';
+import 'package:movie_diary_app/providers/navigation_provider.dart';
 
 class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
   const CustomAppBar({super.key});
@@ -37,6 +39,8 @@ class _CustomAppBarState extends State<CustomAppBar> {
 
   @override
   Widget build(BuildContext context) {
+    final navProvider = Provider.of<NavigationProvider>(context, listen: false);
+
     return Container(
       decoration: const BoxDecoration(
         color: kSurfaceLowest,
@@ -60,48 +64,59 @@ class _CustomAppBarState extends State<CustomAppBar> {
               IconButton(
                 icon: const Icon(Icons.menu_rounded, color: kPrimary),
                 onPressed: () {
-                  // Action for menu if needed
+                  navProvider.openMainDrawer();
                 },
+              ),
+              const SizedBox(width: 4),
+              Image.asset(
+                'assets/images/app_logo.png',
+                width: 28,
+                height: 28,
               ),
               const SizedBox(width: 8),
               const Text(
                 'Movie Diary',
                 style: TextStyle(
                   fontFamily: kHeadlineFont,
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: kOnSurface,
                 ),
               ),
               const Spacer(),
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: kSurfaceHigh,
-                  border: Border.all(color: Colors.white, width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: kSurfaceDim.withValues(alpha: 0.3),
-                      blurRadius: 6,
-                    ),
-                  ],
-                ),
-                child: ClipOval(
-                  child: _user?.profileImage != null
-                      ? Image.network(
-                          ApiService.buildImageUrl(_user!.profileImage) ?? '',
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _defaultAvatar(),
-                        )
-                      : _defaultAvatar(),
+              GestureDetector(
+                onTap: () {
+                  navProvider.setSelectedIndex(3);
+                },
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: kSurfaceHigh,
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: kSurfaceDim.withValues(alpha: 0.3),
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: _user?.profileImage != null
+                        ? Image.network(
+                            ApiService.buildImageUrl(_user!.profileImage) ??
+                                '',
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => _defaultAvatar(),
+                          )
+                        : _defaultAvatar(),
+                  ),
                 ),
               ),
             ],
           ),
-        ),
-      ),
+        ),      ),
     );
   }
 
