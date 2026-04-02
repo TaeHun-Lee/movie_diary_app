@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import 'package:movie_diary_app/constants.dart';
 import 'package:movie_diary_app/providers/diary_provider.dart';
 import 'package:movie_diary_app/screens/personal_diary_write_screen.dart';
+import 'package:provider/provider.dart';
 
 class PersonalDiaryScreen extends StatefulWidget {
   const PersonalDiaryScreen({super.key});
@@ -40,11 +40,13 @@ class _PersonalDiaryScreenState extends State<PersonalDiaryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom + kSpacingNav;
+
     return Scaffold(
       backgroundColor: kSurface,
       appBar: AppBar(
         title: const Text(
-          'Personal Archive',
+          '개인 아카이브',
           style: TextStyle(
             fontFamily: kHeadlineFont,
             fontWeight: FontWeight.w800,
@@ -68,37 +70,41 @@ class _PersonalDiaryScreenState extends State<PersonalDiaryScreen> {
           }
 
           if (diaries.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.auto_stories_rounded,
-                    size: 80,
-                    color: kSurfaceDim,
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    '작성된 일기가 없습니다.\n오늘의 소중한 순간을 기록해보세요.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: kOnSurfaceVariant.withValues(alpha: 0.7),
-                      fontFamily: kBodyFont,
-                      fontSize: 16,
-                      height: 1.5,
+            return Padding(
+              padding: EdgeInsets.only(bottom: bottomInset),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.auto_stories_rounded,
+                      size: 80,
+                      color: kSurfaceDim,
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 20),
+                    Text(
+                      '작성된 일기가 없습니다.\n오늘의 감정과 시간을 기록해보세요.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: kOnSurfaceVariant.withValues(alpha: 0.7),
+                        fontFamily: kBodyFont,
+                        fontSize: 16,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
+            padding: EdgeInsets.fromLTRB(20, 10, 20, bottomInset),
             itemCount: diaries.length,
             itemBuilder: (context, index) {
               final diary = diaries[index];
-              final date = DateTime.tryParse(diary['date'] ?? '') ?? DateTime.now();
+              final date =
+                  DateTime.tryParse(diary['date'] ?? '') ?? DateTime.now();
               final content = diary['content'] ?? '';
 
               return Container(
@@ -126,17 +132,14 @@ class _PersonalDiaryScreenState extends State<PersonalDiaryScreen> {
                     child: InkWell(
                       onTap: () => _navigateToWrite(date),
                       child: Padding(
-                        padding: const EdgeInsets.all(20.0),
+                        padding: const EdgeInsets.all(20),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
                               children: [
                                 Text(
-                                  DateFormat(
-                                    'yyyy. MM. dd',
-                                    'ko_KR',
-                                  ).format(date),
+                                  DateFormat('yyyy. MM. dd', 'ko_KR').format(date),
                                   style: const TextStyle(
                                     color: kOnSurface,
                                     fontFamily: kHeadlineFont,
@@ -148,7 +151,8 @@ class _PersonalDiaryScreenState extends State<PersonalDiaryScreen> {
                                 Text(
                                   DateFormat('(E)', 'ko_KR').format(date),
                                   style: TextStyle(
-                                    color: kOnSurfaceVariant.withValues(alpha: 0.5),
+                                    color:
+                                        kOnSurfaceVariant.withValues(alpha: 0.5),
                                     fontFamily: kHeadlineFont,
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
@@ -157,7 +161,8 @@ class _PersonalDiaryScreenState extends State<PersonalDiaryScreen> {
                                 const Spacer(),
                                 Icon(
                                   Icons.chevron_right_rounded,
-                                  color: kOnSurfaceVariant.withValues(alpha: 0.3),
+                                  color:
+                                      kOnSurfaceVariant.withValues(alpha: 0.3),
                                 ),
                               ],
                             ),
@@ -184,30 +189,33 @@ class _PersonalDiaryScreenState extends State<PersonalDiaryScreen> {
           );
         },
       ),
-      floatingActionButton: Container(
-        decoration: BoxDecoration(
-          gradient: kPrimaryGradient,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: kPrimary.withValues(alpha: 0.25),
-              offset: const Offset(0, 6),
-              blurRadius: 12,
-            ),
-          ],
-        ),
-        child: FloatingActionButton(
-          onPressed: () => _navigateToWrite(),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          highlightElevation: 0,
-          shape: RoundedRectangleBorder(
+      floatingActionButton: Padding(
+        padding: EdgeInsets.only(bottom: bottomInset - kSpacingXXL),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: kPrimaryGradient,
             borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: kPrimary.withValues(alpha: 0.25),
+                offset: const Offset(0, 6),
+                blurRadius: 12,
+              ),
+            ],
           ),
-          child: const Icon(
-            Icons.add_rounded,
-            color: Colors.white,
-            size: 32,
+          child: FloatingActionButton(
+            onPressed: () => _navigateToWrite(),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            highlightElevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Icon(
+              Icons.add_rounded,
+              color: Colors.white,
+              size: 32,
+            ),
           ),
         ),
       ),

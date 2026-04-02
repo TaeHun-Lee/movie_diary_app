@@ -4,11 +4,15 @@ import 'package:dio/dio.dart';
 import 'package:movie_diary_app/data/diary_entry.dart';
 import 'package:movie_diary_app/data/home_data.dart';
 import 'package:movie_diary_app/data/movie.dart';
+import 'package:movie_diary_app/providers/diary_provider.dart';
+import 'package:movie_diary_app/providers/home_provider.dart';
+import 'package:movie_diary_app/providers/post_provider.dart';
 import 'package:movie_diary_app/services/connectivity_service.dart';
 import 'package:movie_diary_app/services/navigation_service.dart';
 import 'package:movie_diary_app/services/token_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
@@ -335,6 +339,48 @@ class ApiService {
     return null;
   }
 
+  static Future<void> _refreshGlobalState({
+    bool refreshHome = false,
+    bool refreshPosts = false,
+    bool refreshPersonalDiaries = false,
+  }) async {
+    final context = NavigationService.navigatorKey.currentContext;
+    if (context == null) return;
+
+    final futures = <Future<void>>[];
+
+    if (refreshHome) {
+      futures.add(
+        Provider.of<HomeProvider>(
+          context,
+          listen: false,
+        ).fetchHomeData(forceRefresh: true),
+      );
+    }
+
+    if (refreshPosts) {
+      futures.add(
+        Provider.of<PostProvider>(
+          context,
+          listen: false,
+        ).refreshAfterMutation(),
+      );
+    }
+
+    if (refreshPersonalDiaries) {
+      futures.add(
+        Provider.of<DiaryProvider>(
+          context,
+          listen: false,
+        ).fetchPersonalDiaries(forceRefresh: true),
+      );
+    }
+
+    if (futures.isNotEmpty) {
+      await Future.wait(futures);
+    }
+  }
+
   static Future<Map<String, dynamic>> getPosts({
     int page = 1,
     int limit = 10,
@@ -380,6 +426,7 @@ class ApiService {
         '/comments',
         data: {'post_id': postId, 'content': content},
       );
+      await _refreshGlobalState(refreshHome: true, refreshPosts: true);
       return response.data['data'];
     } on DioException catch (e) {
       _handleDioError(e, '댓글 작성에 실패했습니다');
@@ -390,6 +437,7 @@ class ApiService {
     try {
       await _checkConnectivity();
       await _dio.delete('/comments/$commentId');
+      await _refreshGlobalState(refreshHome: true, refreshPosts: true);
     } on DioException catch (e) {
       _handleDioError(e, '댓글 삭제에 실패했습니다');
     }
@@ -484,6 +532,7 @@ class ApiService {
           if (photoUrls != null) 'photo_urls': photoUrls,
         },
       );
+      await _refreshGlobalState(refreshHome: true, refreshPosts: true);
     } on DioException catch (e) {
       _handleDioError(e, '게시글 작성에 실패했습니다');
     }
@@ -513,6 +562,7 @@ class ApiService {
           if (photoUrls != null) 'photo_urls': photoUrls,
         },
       );
+      await _refreshGlobalState(refreshHome: true, refreshPosts: true);
     } on DioException catch (e) {
       _handleDioError(e, '게시글 수정에 실패했습니다');
     }
@@ -522,6 +572,7 @@ class ApiService {
     try {
       await _checkConnectivity();
       await _dio.delete('/posts/$postId');
+      await _refreshGlobalState(refreshHome: true, refreshPosts: true);
     } on DioException catch (e) {
       _handleDioError(e, '게시글 삭제에 실패했습니다');
     }
@@ -600,6 +651,7 @@ class ApiService {
         '/personal-diary',
         data: {'date': date, 'content': content},
       );
+      await _refreshGlobalState(refreshPersonalDiaries: true);
     } on DioException catch (e) {
       _handleDioError(e, '일기 저장에 실패했습니다.');
     }
@@ -634,6 +686,7 @@ class ApiService {
     try {
       await _checkConnectivity();
       await _dio.delete('/personal-diary/$id');
+      await _refreshGlobalState(refreshPersonalDiaries: true);
     } on DioException catch (e) {
       _handleDioError(e, '일기 삭제에 실패했습니다.');
     }

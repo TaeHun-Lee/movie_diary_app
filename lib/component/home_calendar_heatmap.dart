@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:movie_diary_app/component/home_diary_card.dart';
 import 'package:movie_diary_app/constants.dart';
 import 'package:movie_diary_app/data/diary_entry.dart';
-import 'package:movie_diary_app/component/home_diary_card.dart';
 
 class HomeCalendarHeatmap extends StatelessWidget {
   final Map<int, int> heatmap;
@@ -19,25 +19,7 @@ class HomeCalendarHeatmap extends StatelessWidget {
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-    // Monday = 1, Sunday = 7 → offset for grid
     final firstWeekday = DateTime(now.year, now.month, 1).weekday;
-
-    final monthNames = [
-      '',
-      '1월',
-      '2월',
-      '3월',
-      '4월',
-      '5월',
-      '6월',
-      '7월',
-      '8월',
-      '9월',
-      '10월',
-      '11월',
-      '12월',
-    ];
-
     final totalViews = heatmap.values.fold<int>(0, (sum, count) => sum + count);
 
     return Container(
@@ -61,12 +43,11 @@ class HomeCalendarHeatmap extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${monthNames[now.month]} 관람 기록',
+                '${now.month}월 관람 기록',
                 style: const TextStyle(
                   fontFamily: kHeadlineFont,
                   fontSize: 16,
@@ -75,7 +56,7 @@ class HomeCalendarHeatmap extends StatelessWidget {
                 ),
               ),
               Text(
-                '$totalViews편 관람',
+                '$totalViews회 관람',
                 style: TextStyle(
                   fontFamily: kBodyFont,
                   fontSize: 12,
@@ -85,17 +66,15 @@ class HomeCalendarHeatmap extends StatelessWidget {
             ],
           ),
           const SizedBox(height: kSpacingL),
-
-          // Weekday labels
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: ['월', '화', '수', '목', '금', '토', '일']
                 .map(
-                  (d) => SizedBox(
+                  (weekday) => SizedBox(
                     width: 32,
                     child: Center(
                       child: Text(
-                        d,
+                        weekday,
                         style: TextStyle(
                           fontFamily: kBodyFont,
                           fontSize: 10,
@@ -109,8 +88,6 @@ class HomeCalendarHeatmap extends StatelessWidget {
                 .toList(),
           ),
           const SizedBox(height: kSpacingS),
-
-          // Calendar grid
           _buildCalendarGrid(
             context,
             daysInMonth,
@@ -131,14 +108,12 @@ class HomeCalendarHeatmap extends StatelessWidget {
     int today,
   ) {
     final cells = <Widget>[];
-
-    // Empty cells before first day (Monday-based: Monday=1)
     final emptyBefore = (firstWeekday - 1) % 7;
+
     for (int i = 0; i < emptyBefore; i++) {
       cells.add(const SizedBox());
     }
 
-    // Day cells
     for (int day = 1; day <= daysInMonth; day++) {
       final count = heatmap[day] ?? 0;
       final isToday = day == today;
@@ -182,7 +157,6 @@ class HomeCalendarHeatmap extends StatelessWidget {
       );
     }
 
-    // Fill remaining cells to complete the grid
     final totalCells = emptyBefore + daysInMonth;
     final remainingCells = (7 - (totalCells % 7)) % 7;
     for (int i = 0; i < remainingCells; i++) {
@@ -200,8 +174,8 @@ class HomeCalendarHeatmap extends StatelessWidget {
 
   void _showDayEntries(BuildContext context, int day) {
     final now = DateTime.now();
-    final dayEntries = entries.where((e) {
-      final date = DateTime.tryParse(e.watchedDate);
+    final dayEntries = entries.where((entry) {
+      final date = DateTime.tryParse(entry.watchedDate);
       return date != null &&
           date.year == now.year &&
           date.month == now.month &&
@@ -214,6 +188,7 @@ class HomeCalendarHeatmap extends StatelessWidget {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      useSafeArea: true,
       builder: (_) => Container(
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(context).size.height * 0.6,
@@ -227,7 +202,6 @@ class HomeCalendarHeatmap extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Drag handle
             Padding(
               padding: const EdgeInsets.only(top: 12, bottom: 8),
               child: Container(
@@ -239,8 +213,6 @@ class HomeCalendarHeatmap extends StatelessWidget {
                 ),
               ),
             ),
-
-            // Header
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 kSpacingXL,
@@ -251,7 +223,7 @@ class HomeCalendarHeatmap extends StatelessWidget {
               child: Row(
                 children: [
                   Text(
-                    '${now.month}월 day일 관람 기록',
+                    '${now.month}월 ${day}일 관람 기록',
                     style: const TextStyle(
                       fontFamily: kHeadlineFont,
                       fontSize: 18,
@@ -270,7 +242,7 @@ class HomeCalendarHeatmap extends StatelessWidget {
                       borderRadius: BorderRadius.circular(kRadiusS),
                     ),
                     child: Text(
-                      '${dayEntries.length}편',
+                      '${dayEntries.length}개',
                       style: const TextStyle(
                         fontFamily: kHeadlineFont,
                         fontSize: 12,
@@ -282,8 +254,6 @@ class HomeCalendarHeatmap extends StatelessWidget {
                 ],
               ),
             ),
-
-            // Entry list
             Flexible(
               child: ListView.builder(
                 shrinkWrap: true,
@@ -291,7 +261,7 @@ class HomeCalendarHeatmap extends StatelessWidget {
                   kSpacingXL,
                   0,
                   kSpacingXL,
-                  kSpacing3XL,
+                  kSpacingNav,
                 ),
                 itemCount: dayEntries.length,
                 itemBuilder: (ctx, i) =>

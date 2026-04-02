@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import 'package:movie_diary_app/constants.dart';
 import 'package:movie_diary_app/providers/diary_provider.dart';
 import 'package:movie_diary_app/services/api_service.dart';
+import 'package:provider/provider.dart';
 
 class PersonalDiaryWriteScreen extends StatefulWidget {
   final DateTime initialDate;
 
-  const PersonalDiaryWriteScreen({super.key, required this.initialDate});
+  const PersonalDiaryWriteScreen({
+    super.key,
+    required this.initialDate,
+  });
 
   @override
   State<PersonalDiaryWriteScreen> createState() =>
@@ -46,10 +49,10 @@ class _PersonalDiaryWriteScreenState extends State<PersonalDiaryWriteScreen> {
         _contentController.clear();
         _diaryId = null;
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('데이터를 불러오는데 실패했습니다.')),
+          const SnackBar(content: Text('일기를 불러오지 못했습니다.')),
         );
       }
     } finally {
@@ -85,7 +88,9 @@ class _PersonalDiaryWriteScreenState extends State<PersonalDiaryWriteScreen> {
         );
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -151,14 +156,16 @@ class _PersonalDiaryWriteScreenState extends State<PersonalDiaryWriteScreen> {
         );
         Navigator.pop(context, true);
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('삭제에 실패했습니다.')),
+          const SnackBar(content: Text('삭제하지 못했습니다.')),
         );
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -192,6 +199,8 @@ class _PersonalDiaryWriteScreenState extends State<PersonalDiaryWriteScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom + kSpacingNav;
+
     return Scaffold(
       backgroundColor: kSurface,
       appBar: AppBar(
@@ -244,7 +253,7 @@ class _PersonalDiaryWriteScreenState extends State<PersonalDiaryWriteScreen> {
               child: CircularProgressIndicator(color: kPrimary),
             )
           : Padding(
-              padding: const EdgeInsets.all(20.0),
+              padding: EdgeInsets.fromLTRB(20, 20, 20, bottomInset),
               child: Column(
                 children: [
                   Expanded(

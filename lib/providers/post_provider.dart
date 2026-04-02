@@ -275,6 +275,20 @@ class PostProvider with ChangeNotifier {
   String? get errorMy => _errorMy;
   bool get hasErrorAll => _errorAll != null;
 
+  Future<void> refreshAfterMutation() async {
+    final futures = <Future<void>>[fetchMyPosts()];
+
+    if (_allPosts.isNotEmpty || _errorAll != null) {
+      futures.add(fetchAllPosts(refresh: true));
+    }
+
+    if (_popularPosts.isNotEmpty) {
+      futures.add(fetchPopularPosts());
+    }
+
+    await Future.wait(futures);
+  }
+
   // 커뮤니티 피드 게시물 가져오기 (초기 로드 또는 새로고침)
   Future<void> fetchAllPosts({
     String? keyword,
@@ -429,6 +443,10 @@ class PostProvider with ChangeNotifier {
     _allPosts = [];
     _myPosts = [];
     _popularPosts = [];
+    _errorAll = null;
+    _errorMy = null;
+    _currentPage = 1;
+    _hasMore = true;
     notifyListeners();
   }
 }

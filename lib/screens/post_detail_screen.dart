@@ -1,13 +1,14 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import 'package:movie_diary_app/constants.dart';
 import 'package:movie_diary_app/providers/post_provider.dart';
 import 'package:movie_diary_app/services/api_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 class PostDetailScreen extends StatefulWidget {
   final int postId;
+
   const PostDetailScreen({super.key, required this.postId});
 
   @override
@@ -35,65 +36,84 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     super.dispose();
   }
 
+  Map<String, dynamic> _asMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      return value.map((key, entry) => MapEntry(key.toString(), entry));
+    }
+    return <String, dynamic>{};
+  }
+
+  String _asText(dynamic value, {String fallback = ''}) {
+    if (value == null) return fallback;
+    final text = value.toString().trim();
+    return text.isEmpty ? fallback : text;
+  }
+
+  DateTime? _tryParseDate(dynamic value) {
+    if (value == null) return null;
+    return DateTime.tryParse(value.toString());
+  }
+
   Future<void> _fetchPostDetails() async {
     setState(() => _isLoading = true);
+
     try {
-      final post = await ApiService.dio.get('/posts/${widget.postId}');
+      final postResponse = await ApiService.dio.get('/posts/${widget.postId}');
       final comments = await ApiService.getComments(widget.postId);
       final isLiked = await ApiService.getLikeStatus(widget.postId);
 
       setState(() {
-        _post = post.data['data'];
-        _comments = comments;
+        _post = postResponse.data['data'];
+        _comments = comments.where((comment) => comment != null).toList();
         _isLiked = isLiked;
         _isLoading = false;
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('게시글 정보를 불러오는데 실패했습니다.')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to load post details.')),
+      );
     }
   }
 
   Future<void> _toggleLike() async {
-    // 1. 낙관적 UI 적용: 즉시 상태 변경
+    final post = _asMap(_post);
     final originalIsLiked = _isLiked;
-    final originalLikesCount = _post['likes_count'];
-    
+    final originalLikesCount = (post['likes_count'] as num?)?.toInt() ?? 0;
+
     setState(() {
       _isLiked = !_isLiked;
-      _post['likes_count'] = _isLiked ? originalLikesCount + 1 : originalLikesCount - 1;
+      post['likes_count'] = _isLiked
+          ? originalLikesCount + 1
+          : originalLikesCount - 1;
+      _post = post;
       _hasChanged = true;
     });
 
     try {
       final postProvider = Provider.of<PostProvider>(context, listen: false);
       await postProvider.toggleLike(widget.postId);
-      
-      // 서버 데이터와 동기화 (선택 사항이지만 안전을 위해 수행)
+
       final actualIsLiked = await ApiService.getLikeStatus(widget.postId);
       final postResponse = await ApiService.dio.get('/posts/${widget.postId}');
-      
-      if (mounted) {
-        setState(() {
-          _isLiked = actualIsLiked;
-          _post['likes_count'] = postResponse.data['data']['likes_count'];
-        });
-      }
+
+      if (!mounted) return;
+      setState(() {
+        _isLiked = actualIsLiked;
+        _post = postResponse.data['data'];
+      });
     } catch (e) {
-      // 2. 에러 발생 시 원래 상태로 롤백
-      if (mounted) {
-        setState(() {
-          _isLiked = originalIsLiked;
-          _post['likes_count'] = originalLikesCount;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('좋아요 처리에 실패했습니다.')),
-        );
-      }
+      if (!mounted) return;
+      setState(() {
+        _isLiked = originalIsLiked;
+        post['likes_count'] = originalLikesCount;
+        _post = post;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to update like status.')),
+      );
     }
   }
 
@@ -102,34 +122,31 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     if (content.isEmpty || _isSubmitting) return;
 
     setState(() => _isSubmitting = true);
-    
+
     try {
-      final response = await ApiService.createComment(widget.postId, content);
-      final newComment = response.data['data'];
-      
+      final newComment = await ApiService.createComment(widget.postId, content);
       _commentController.clear();
-      
+
       setState(() {
-        // 전체 목록을 다시 가져오는 대신 새 댓글을 리스트 맨 앞에 추가
-        _comments.insert(0, newComment);
+        _comments = [newComment, ..._comments.where((comment) => comment != null)];
         _isSubmitting = false;
         _hasChanged = true;
       });
 
-      // PostProvider 업데이트
       if (mounted) {
-        Provider.of<PostProvider>(context, listen: false)
-            .updateCommentCount(widget.postId, _comments.length);
+        Provider.of<PostProvider>(
+          context,
+          listen: false,
+        ).updateCommentCount(widget.postId, _comments.length);
       }
-      
+
       FocusScope.of(context).unfocus();
     } catch (e) {
       setState(() => _isSubmitting = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('댓글 작성에 실패했습니다.')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to create comment.')),
+      );
     }
   }
 
@@ -142,9 +159,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       );
     }
 
-    final user = _post['user'];
-    final movie = _post['movie'];
-    final createdAt = DateTime.parse(_post['created_at']);
+    final post = _asMap(_post);
+    final user = _asMap(post['user']);
+    final movie = _asMap(post['movie']);
+    final createdAt = _tryParseDate(post['created_at']);
 
     return PopScope(
       canPop: false,
@@ -155,7 +173,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       child: Scaffold(
         backgroundColor: kSurface,
         appBar: AppBar(
-          title: const Text('다이어리 상세'),
+          title: const Text('Post Detail'),
           centerTitle: true,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
@@ -175,7 +193,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     _buildMovieCard(movie),
                     const SizedBox(height: 24),
                     Text(
-                      _post['title'],
+                      _asText(post['title'], fallback: 'Untitled'),
                       style: const TextStyle(
                         fontFamily: kHeadlineFont,
                         fontSize: 22,
@@ -184,7 +202,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      _post['content'] ?? '',
+                      _asText(post['content']),
                       style: const TextStyle(
                         fontSize: 16,
                         height: 1.6,
@@ -192,7 +210,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       ),
                     ),
                     const SizedBox(height: 32),
-                    _buildInteractionBar(),
+                    _buildInteractionBar(post),
                     const Divider(height: 48),
                     _buildCommentsSection(),
                   ],
@@ -206,18 +224,18 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
-  Widget _buildUserHeader(dynamic user, DateTime createdAt) {
-    final profileImage = user['profile_image'];
-    final hasProfileImage = profileImage != null && profileImage.toString().isNotEmpty;
+  Widget _buildUserHeader(Map<String, dynamic> user, DateTime? createdAt) {
+    final profileImage = _asText(user['profile_image']);
+    final imageUrl = ApiService.buildImageUrl(profileImage);
+    final hasProfileImage = imageUrl != null && profileImage.isNotEmpty;
 
     return Row(
       children: [
         CircleAvatar(
           radius: 20,
           backgroundColor: kSurfaceHigh,
-          backgroundImage: hasProfileImage
-              ? CachedNetworkImageProvider(ApiService.buildImageUrl(profileImage)!)
-              : null,
+          backgroundImage:
+              hasProfileImage ? CachedNetworkImageProvider(imageUrl) : null,
           child: !hasProfileImage
               ? const Icon(Icons.person, color: kOnSurfaceVariant)
               : null,
@@ -227,11 +245,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              user['nickname'],
+              _asText(user['nickname'], fallback: 'Unknown user'),
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
             Text(
-              DateFormat('yyyy년 MM월 dd일 HH:mm').format(createdAt),
+              createdAt != null
+                  ? DateFormat('yyyy.MM.dd HH:mm').format(createdAt)
+                  : 'Unknown date',
               style: TextStyle(
                 color: kOnSurfaceVariant.withValues(alpha: 0.6),
                 fontSize: 12,
@@ -243,14 +263,16 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
-  Widget _buildMovieCard(dynamic movie) {
-    if (movie == null) return const SizedBox.shrink();
-    
-    final title = movie['title'] ?? '제목 없음';
-    final director = movie['director'] ?? '감독 정보 없음';
-    final releaseDate = movie['release_date'] ?? movie['releaseDate'] ?? '';
-    final displayDate = releaseDate.length >= 4 ? releaseDate.substring(0, 4) : '연도 미상';
-    final posterUrl = movie['poster'] ?? movie['posterUrl'];
+  Widget _buildMovieCard(Map<String, dynamic> movie) {
+    if (movie.isEmpty) return const SizedBox.shrink();
+
+    final title = _asText(movie['title'], fallback: 'Unknown title');
+    final director = _asText(movie['director'], fallback: 'Unknown director');
+    final releaseDate = _asText(movie['release_date'] ?? movie['releaseDate']);
+    final displayDate =
+        releaseDate.length >= 4 ? releaseDate.substring(0, 4) : 'Unknown year';
+    final posterPath = _asText(movie['poster'] ?? movie['posterUrl']);
+    final posterUrl = ApiService.buildImageUrl(posterPath);
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -264,7 +286,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: CachedNetworkImage(
-                imageUrl: ApiService.buildImageUrl(posterUrl)!,
+                imageUrl: posterUrl,
                 width: 50,
                 height: 75,
                 fit: BoxFit.cover,
@@ -272,8 +294,24 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   width: 50,
                   height: 75,
                   color: kSurfaceHigh,
-                  child: const Icon(Icons.movie_filter, color: kOnSurfaceVariant),
+                  child: const Icon(
+                    Icons.movie_filter,
+                    color: kOnSurfaceVariant,
+                  ),
                 ),
+              ),
+            )
+          else
+            Container(
+              width: 50,
+              height: 75,
+              decoration: BoxDecoration(
+                color: kSurfaceHigh,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.movie_filter,
+                color: kOnSurfaceVariant,
               ),
             ),
           const SizedBox(width: 12),
@@ -283,11 +321,17 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
                 Text(
                   '$director | $displayDate',
-                  style: const TextStyle(fontSize: 13, color: kOnSurfaceVariant),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: kOnSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -297,7 +341,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
-  Widget _buildInteractionBar() {
+  Widget _buildInteractionBar(Map<String, dynamic> post) {
+    final likesCount = (post['likes_count'] as num?)?.toInt() ?? 0;
+
     return Row(
       children: [
         GestureDetector(
@@ -305,13 +351,15 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           child: Row(
             children: [
               Icon(
-                _isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                _isLiked
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
                 color: _isLiked ? kError : kOnSurfaceVariant,
                 size: 24,
               ),
               const SizedBox(width: 6),
               Text(
-                '좋아요 ${_post['likes_count']}',
+                'Likes $likesCount',
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   color: _isLiked ? kError : kOnSurfaceVariant,
@@ -323,11 +371,18 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         const SizedBox(width: 24),
         Row(
           children: [
-            const Icon(Icons.chat_bubble_outline_rounded, color: kOnSurfaceVariant, size: 22),
+            const Icon(
+              Icons.chat_bubble_outline_rounded,
+              color: kOnSurfaceVariant,
+              size: 22,
+            ),
             const SizedBox(width: 6),
             Text(
-              '댓글 ${_comments.length}',
-              style: const TextStyle(fontWeight: FontWeight.w600, color: kOnSurfaceVariant),
+              'Comments ${_comments.length}',
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: kOnSurfaceVariant,
+              ),
             ),
           ],
         ),
@@ -336,35 +391,40 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   }
 
   Widget _buildCommentsSection() {
+    final visibleComments =
+        _comments.where((comment) => comment != null).toList(growable: false);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          '댓글',
+          'Comments',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         const SizedBox(height: 16),
-        if (_comments.isEmpty)
+        if (visibleComments.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
             child: Center(
               child: Text(
-                '첫 번째 댓글을 남겨보세요!',
+                'Be the first to add a comment.',
                 style: TextStyle(color: kOnSurfaceVariant),
               ),
             ),
           )
         else
-          ..._comments.map((comment) => _buildCommentItem(comment)),
+          ...visibleComments.map(_buildCommentItem),
       ],
     );
   }
 
   Widget _buildCommentItem(dynamic comment) {
-    final user = comment['user'];
-    final createdAt = DateTime.parse(comment['created_at']);
-    final profileImage = user['profile_image'];
-    final hasProfileImage = profileImage != null && profileImage.toString().isNotEmpty;
+    final commentMap = _asMap(comment);
+    final user = _asMap(commentMap['user']);
+    final createdAt = _tryParseDate(commentMap['created_at']);
+    final profileImage = _asText(user['profile_image']);
+    final imageUrl = ApiService.buildImageUrl(profileImage);
+    final hasProfileImage = imageUrl != null && profileImage.isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
@@ -374,9 +434,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           CircleAvatar(
             radius: 16,
             backgroundColor: kSurfaceHigh,
-            backgroundImage: hasProfileImage
-                ? CachedNetworkImageProvider(ApiService.buildImageUrl(profileImage)!)
-                : null,
+            backgroundImage:
+                hasProfileImage ? CachedNetworkImageProvider(imageUrl) : null,
             child: !hasProfileImage
                 ? const Icon(Icons.person, size: 18, color: kOnSurfaceVariant)
                 : null,
@@ -389,19 +448,27 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 Row(
                   children: [
                     Text(
-                      user['nickname'],
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      _asText(user['nickname'], fallback: 'Unknown user'),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      DateFormat('MM.dd HH:mm').format(createdAt),
-                      style: TextStyle(color: kOnSurfaceVariant.withValues(alpha: 0.5), fontSize: 11),
+                      createdAt != null
+                          ? DateFormat('MM.dd HH:mm').format(createdAt)
+                          : 'Unknown time',
+                      style: TextStyle(
+                        color: kOnSurfaceVariant.withValues(alpha: 0.5),
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  comment['content'],
+                  _asText(commentMap['content']),
                   style: const TextStyle(fontSize: 14, color: kOnSurface),
                 ),
               ],
@@ -414,7 +481,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
   Widget _buildCommentInput() {
     return Container(
-      padding: EdgeInsets.fromLTRB(20, 12, 20, MediaQuery.of(context).padding.bottom + 12),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        12,
+        20,
+        MediaQuery.of(context).padding.bottom + 12,
+      ),
       decoration: BoxDecoration(
         color: kSurfaceLowest,
         boxShadow: [
@@ -437,11 +509,14 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 controller: _commentController,
                 readOnly: _isSubmitting,
                 decoration: const InputDecoration(
-                  hintText: '댓글을 입력하세요...',
+                  hintText: 'Write a comment...',
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                 ),
                 maxLines: null,
               ),
@@ -452,7 +527,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               ? const SizedBox(
                   width: 24,
                   height: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: kPrimary,
+                  ),
                 )
               : IconButton(
                   onPressed: _submitComment,

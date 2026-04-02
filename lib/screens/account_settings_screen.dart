@@ -225,7 +225,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
       backgroundColor: kSurface,
       appBar: AppBar(
         title: const Text(
-          'Account Settings',
+          '계정 설정',
           style: TextStyle(
             fontFamily: kHeadlineFont,
             fontWeight: FontWeight.w800,

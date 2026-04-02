@@ -33,6 +33,8 @@ class _MainScreenState extends State<MainScreen> {
 
   final GlobalKey<HomeScreenState> _homeKey = GlobalKey();
   final GlobalKey<MovieSearchScreenState> _searchKey = GlobalKey();
+  final GlobalKey<MyDiaryListScreenState> _diaryListKey = GlobalKey();
+  final GlobalKey<MyPageScreenState> _myPageKey = GlobalKey();
 
   @override
   void initState() {
@@ -110,11 +112,7 @@ class _MainScreenState extends State<MainScreen> {
         navigatorState.popUntil((route) => route.isFirst);
       } else {
         // 이미 루트라면 새로고침/초기화 수행
-        if (index == 0) {
-          _homeKey.currentState?.refresh();
-        } else if (index == 1) {
-          _searchKey.currentState?.reset();
-        }
+        _refreshCurrentTab(index);
       }
     } else {
       // 새로운 탭으로 전환하는 경우
@@ -123,7 +121,27 @@ class _MainScreenState extends State<MainScreen> {
         navigatorState.popUntil((route) => route.isFirst);
       }
       navProvider.setSelectedIndex(index);
+      _scheduleTabRefresh(index);
     }
+  }
+
+  void _refreshCurrentTab(int index) {
+    if (index == 0) {
+      _homeKey.currentState?.refresh();
+    } else if (index == 1) {
+      _searchKey.currentState?.reset();
+    } else if (index == 2) {
+      _diaryListKey.currentState?.refresh();
+    } else if (index == 3) {
+      _myPageKey.currentState?.refresh();
+    }
+  }
+
+  void _scheduleTabRefresh(int index) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _refreshCurrentTab(index);
+    });
   }
 
   @override
@@ -182,11 +200,11 @@ class _MainScreenState extends State<MainScreen> {
             ),
             TabNavigator(
               navigatorKey: _navigatorKeys[2],
-              rootPage: const MyDiaryListScreen(),
+              rootPage: MyDiaryListScreen(key: _diaryListKey),
             ),
             TabNavigator(
               navigatorKey: _navigatorKeys[3],
-              rootPage: const MyPageScreen(),
+              rootPage: MyPageScreen(key: _myPageKey),
             ),
           ],
         ),

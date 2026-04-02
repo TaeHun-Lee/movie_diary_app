@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:movie_diary_app/constants.dart';
 import 'package:movie_diary_app/data/home_data.dart';
+import 'package:movie_diary_app/providers/home_provider.dart';
 import 'package:movie_diary_app/services/api_service.dart';
 import 'package:movie_diary_app/providers/navigation_provider.dart';
 
@@ -17,30 +18,22 @@ class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
 }
 
 class _CustomAppBarState extends State<CustomAppBar> {
-  User? _user;
-
   @override
   void initState() {
     super.initState();
-    _loadUser();
-  }
-
-  Future<void> _loadUser() async {
-    try {
-      final homeData = await ApiService.fetchHomeData();
-      if (mounted) {
-        setState(() {
-          _user = homeData.user;
-        });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final homeProvider = context.read<HomeProvider>();
+      if (homeProvider.homeData == null && !homeProvider.isLoading) {
+        homeProvider.fetchHomeData();
       }
-    } catch (_) {
-      // Ignored
-    }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final navProvider = Provider.of<NavigationProvider>(context, listen: false);
+    final user = context.watch<HomeProvider>().homeData?.user;
 
     return Container(
       decoration: const BoxDecoration(
@@ -97,11 +90,11 @@ class _CustomAppBarState extends State<CustomAppBar> {
                   ),
                   child: ClipOval(
                     child:
-                        (_user?.profileImage != null &&
-                            _user!.profileImage!.isNotEmpty)
+                        (user?.profileImage != null &&
+                            user!.profileImage!.isNotEmpty)
                         ? CachedNetworkImage(
                             imageUrl: ApiService.buildImageUrl(
-                              _user!.profileImage,
+                              user.profileImage,
                             )!,
                             fit: BoxFit.cover,
                             placeholder: (_, __) => _defaultAvatar(),

@@ -161,6 +161,14 @@ class MovieSearchScreenState extends State<MovieSearchScreen> with SingleTickerP
   }
 
   Widget _buildMovieCard(Movie movie) {
+    final releaseYear = movie.releaseDate.length >= 4
+        ? movie.releaseDate.substring(0, 4)
+        : '';
+    final metadata = [
+      if (movie.director.trim().isNotEmpty) movie.director.trim(),
+      if (releaseYear.isNotEmpty) releaseYear,
+    ].join(' | ');
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -209,11 +217,13 @@ class MovieSearchScreenState extends State<MovieSearchScreen> with SingleTickerP
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${movie.director} | ${movie.releaseDate.substring(0, 4)}',
-                      style: TextStyle(color: kOnSurfaceVariant, fontSize: 14),
-                    ),
+                    if (metadata.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        metadata,
+                        style: TextStyle(color: kOnSurfaceVariant, fontSize: 14),
+                      ),
+                    ],
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 4,
