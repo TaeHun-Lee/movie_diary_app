@@ -11,6 +11,7 @@ class DiaryEntry {
   final Movie movie;
   final DateTime createdAt;
   final String authorNickname;
+  final String? authorProfileImage;
   final int likeCount;
   final int commentCount;
   final bool isSpoiler;
@@ -28,6 +29,7 @@ class DiaryEntry {
     required this.movie,
     required this.createdAt,
     required this.authorNickname,
+    this.authorProfileImage,
     required this.likeCount,
     required this.commentCount,
     required this.isSpoiler,
@@ -51,6 +53,7 @@ class DiaryEntry {
       movie: Movie.fromJson(json['movie'] ?? {}),
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
       authorNickname: json['user']?['nickname'] ?? 'Unknown',
+      authorProfileImage: json['user']?['profile_image'],
       likeCount: json['likes_count'] ?? (json['likes'] as List?)?.length ?? 0,
       commentCount: (json['comments'] as List?)?.length ?? 0,
       isSpoiler: json['is_spoiler'] ?? false,
@@ -74,6 +77,7 @@ class DiaryEntry {
     Movie? movie,
     DateTime? createdAt,
     String? authorNickname,
+    String? authorProfileImage,
     int? likeCount,
     int? commentCount,
     bool? isSpoiler,
@@ -91,6 +95,7 @@ class DiaryEntry {
       movie: movie ?? this.movie,
       createdAt: createdAt ?? this.createdAt,
       authorNickname: authorNickname ?? this.authorNickname,
+      authorProfileImage: authorProfileImage ?? this.authorProfileImage,
       likeCount: likeCount ?? this.likeCount,
       commentCount: commentCount ?? this.commentCount,
       isSpoiler: isSpoiler ?? this.isSpoiler,
@@ -110,7 +115,10 @@ class DiaryEntry {
       'rating': rating,
       'movie': movie.toJson(),
       'created_at': createdAt.toIso8601String(),
-      'user': {'nickname': authorNickname},
+      'user': {
+        'nickname': authorNickname,
+        'profile_image': authorProfileImage,
+      },
       'likes_count': likeCount,
       'comments': List.generate(commentCount, (_) => {}),
       'is_spoiler': isSpoiler,

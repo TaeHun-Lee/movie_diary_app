@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:movie_diary_app/constants.dart';
 import 'package:movie_diary_app/data/home_data.dart';
 import 'package:movie_diary_app/services/api_service.dart';
@@ -44,9 +45,7 @@ class _CustomAppBarState extends State<CustomAppBar> {
     return Container(
       decoration: const BoxDecoration(
         color: kSurfaceLowest,
-        borderRadius: BorderRadius.vertical(
-          bottom: Radius.circular(24),
-        ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
         boxShadow: [
           BoxShadow(
             color: Color(0x0A000000),
@@ -67,18 +66,12 @@ class _CustomAppBarState extends State<CustomAppBar> {
                   navProvider.openMainDrawer();
                 },
               ),
-              const SizedBox(width: 4),
-              Image.asset(
-                'assets/images/app_logo.png',
-                width: 28,
-                height: 28,
-              ),
               const SizedBox(width: 8),
               const Text(
                 'Movie Diary',
                 style: TextStyle(
                   fontFamily: kHeadlineFont,
-                  fontSize: 18,
+                  fontSize: 20,
                   fontWeight: FontWeight.w800,
                   color: kOnSurface,
                 ),
@@ -103,12 +96,16 @@ class _CustomAppBarState extends State<CustomAppBar> {
                     ],
                   ),
                   child: ClipOval(
-                    child: _user?.profileImage != null
-                        ? Image.network(
-                            ApiService.buildImageUrl(_user!.profileImage) ??
-                                '',
+                    child:
+                        (_user?.profileImage != null &&
+                            _user!.profileImage!.isNotEmpty)
+                        ? CachedNetworkImage(
+                            imageUrl: ApiService.buildImageUrl(
+                              _user!.profileImage,
+                            )!,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _defaultAvatar(),
+                            placeholder: (_, __) => _defaultAvatar(),
+                            errorWidget: (_, __, ___) => _defaultAvatar(),
                           )
                         : _defaultAvatar(),
                   ),
@@ -116,14 +113,19 @@ class _CustomAppBarState extends State<CustomAppBar> {
               ),
             ],
           ),
-        ),      ),
+        ),
+      ),
     );
   }
 
   Widget _defaultAvatar() {
     return Container(
       color: kSurfaceHigh,
-      child: const Icon(Icons.person_rounded, color: kOnSurfaceVariant, size: 20),
+      child: const Icon(
+        Icons.person_rounded,
+        color: kOnSurfaceVariant,
+        size: 20,
+      ),
     );
   }
 }

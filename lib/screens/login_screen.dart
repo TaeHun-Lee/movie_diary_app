@@ -136,10 +136,10 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildHeader() {
     return Column(
       children: [
-        // 앱 로고 이미지
+        // 클래퍼보드 아이콘 서클
         Container(
-          width: 100,
-          height: 100,
+          width: 72,
+          height: 72,
           decoration: BoxDecoration(
             color: kSurfaceHigh,
             shape: BoxShape.circle,
@@ -156,13 +156,10 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ],
           ),
-          clipBehavior: Clip.antiAlias,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Image.asset(
-              'assets/images/app_logo.png',
-              fit: BoxFit.contain,
-            ),
+          child: const Icon(
+            Icons.movie_creation_outlined,
+            size: 34,
+            color: kPrimary,
           ),
         ),
         const SizedBox(height: 20),

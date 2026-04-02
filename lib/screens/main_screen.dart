@@ -42,6 +42,8 @@ class _MainScreenState extends State<MainScreen> {
       if (mounted) {
         _navProvider = Provider.of<NavigationProvider>(context, listen: false);
         _navProvider.openDrawerNotifier.addListener(_onOpenDrawerEvent);
+        _navProvider.resetTabNotifier.addListener(_onResetTabEvent);
+        _navProvider.pushToTabNotifier.addListener(_onPushToTabEvent);
       }
     });
   }
@@ -50,6 +52,8 @@ class _MainScreenState extends State<MainScreen> {
   void dispose() {
     // 리스너 해제
     _navProvider.openDrawerNotifier.removeListener(_onOpenDrawerEvent);
+    _navProvider.resetTabNotifier.removeListener(_onResetTabEvent);
+    _navProvider.pushToTabNotifier.removeListener(_onPushToTabEvent);
     super.dispose();
   }
 
@@ -60,14 +64,52 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  void _onItemTapped(int index) {
-    final navProvider = Provider.of<NavigationProvider>(context, listen: false);
-    if (navProvider.selectedIndex == index) {
-      // 이미 선택된 탭을 다시 누르면 해당 탭의 루트로 돌아가거나 새로고침
+  // 탭 리셋 이벤트 처리
+  void _onResetTabEvent() {
+    final index = _navProvider.resetTabNotifier.value;
+    if (index != null && mounted) {
       final navigatorState = _navigatorKeys[index].currentState;
       if (navigatorState != null && navigatorState.canPop()) {
         navigatorState.popUntil((route) => route.isFirst);
+      }
+    }
+  }
+
+  // 특정 탭으로 푸시 이벤트 처리
+  void _onPushToTabEvent() {
+    final event = _navProvider.pushToTabNotifier.value;
+    if (event != null && mounted) {
+      // 탭 전환
+      _onItemTapped(event.index);
+      
+      // 탭 전환 직후 내비게이터에 푸시
+      // 약간의 지연을 주어 탭 전환이 완료된 후 푸시되도록 함
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) {
+          final navigatorState = _navigatorKeys[event.index].currentState;
+          if (navigatorState != null) {
+            navigatorState.push(MaterialPageRoute(
+              builder: (context) => event.screen,
+            ));
+          }
+        }
+      });
+    }
+  }
+
+  void _onItemTapped(int index) {
+    final navProvider = Provider.of<NavigationProvider>(context, listen: false);
+    
+    // 선택된 탭의 내비게이터 상태 확인
+    final navigatorState = _navigatorKeys[index].currentState;
+
+    if (navProvider.selectedIndex == index) {
+      // 이미 선택된 탭을 다시 누른 경우
+      if (navigatorState != null && navigatorState.canPop()) {
+        // 뒤로 갈 스택이 있다면 루트로 이동
+        navigatorState.popUntil((route) => route.isFirst);
       } else {
+        // 이미 루트라면 새로고침/초기화 수행
         if (index == 0) {
           _homeKey.currentState?.refresh();
         } else if (index == 1) {
@@ -75,6 +117,11 @@ class _MainScreenState extends State<MainScreen> {
         }
       }
     } else {
+      // 새로운 탭으로 전환하는 경우
+      if (navigatorState != null && navigatorState.canPop()) {
+        // 전환하려는 탭의 스택이 쌓여있다면 루트로 초기화 (10-1 요구사항)
+        navigatorState.popUntil((route) => route.isFirst);
+      }
       navProvider.setSelectedIndex(index);
     }
   }

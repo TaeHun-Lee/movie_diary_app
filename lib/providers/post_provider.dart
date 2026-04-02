@@ -168,6 +168,26 @@ class PostNotifier extends Notifier<PostState> {
     }
   }
 
+  // 댓글 수 업데이트 (로컬)
+  void updateCommentCount(int postId, int commentCount) {
+    state = state.copyWith(
+      allPosts: _syncCommentCount(state.allPosts, postId, commentCount),
+      myPosts: _syncCommentCount(state.myPosts, postId, commentCount),
+      popularPosts: _syncCommentCount(state.popularPosts, postId, commentCount),
+    );
+  }
+
+  List<DiaryEntry> _syncCommentCount(List<DiaryEntry> posts, int postId, int commentCount) {
+    final index = posts.indexWhere((p) => p.id == postId);
+    if (index == -1) return posts;
+
+    final updatedPosts = List<DiaryEntry>.from(posts);
+    updatedPosts[index] = updatedPosts[index].copyWith(
+      commentCount: commentCount,
+    );
+    return updatedPosts;
+  }
+
   List<DiaryEntry> _updatePostLikeLocally(List<DiaryEntry> posts, int postId) {
     final index = posts.indexWhere((p) => p.id == postId);
     if (index == -1) return posts;
@@ -380,6 +400,27 @@ class PostProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('Error deleting post: $e');
       rethrow;
+    }
+  }
+
+  // 댓글 수 업데이트 (로컬)
+  void updateCommentCount(int postId, int commentCount) {
+    _updatePostCommentCount(_allPosts, postId, commentCount);
+    _updatePostCommentCount(_myPosts, postId, commentCount);
+    _updatePostCommentCount(_popularPosts, postId, commentCount);
+    notifyListeners();
+  }
+
+  void _updatePostCommentCount(
+    List<DiaryEntry> posts,
+    int postId,
+    int commentCount,
+  ) {
+    final index = posts.indexWhere((p) => p.id == postId);
+    if (index != -1) {
+      posts[index] = posts[index].copyWith(
+        commentCount: commentCount,
+      );
     }
   }
 

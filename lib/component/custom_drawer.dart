@@ -5,6 +5,7 @@ import 'package:movie_diary_app/providers/auth_provider.dart';
 import 'package:movie_diary_app/providers/navigation_provider.dart';
 import 'package:movie_diary_app/services/api_service.dart';
 import 'package:movie_diary_app/providers/home_provider.dart';
+import 'package:movie_diary_app/screens/account_settings_screen.dart';
 
 class CustomDrawer extends StatelessWidget {
   const CustomDrawer({super.key});
@@ -43,6 +44,7 @@ class CustomDrawer extends StatelessWidget {
                   index: 0,
                   currentIndex: navProvider.selectedIndex,
                   onTap: () {
+                    navProvider.requestTabReset(0);
                     navProvider.setSelectedIndex(0);
                     Navigator.pop(context);
                   },
@@ -54,6 +56,7 @@ class CustomDrawer extends StatelessWidget {
                   index: 1,
                   currentIndex: navProvider.selectedIndex,
                   onTap: () {
+                    navProvider.requestTabReset(1);
                     navProvider.setSelectedIndex(1);
                     Navigator.pop(context);
                   },
@@ -65,6 +68,7 @@ class CustomDrawer extends StatelessWidget {
                   index: 2,
                   currentIndex: navProvider.selectedIndex,
                   onTap: () {
+                    navProvider.requestTabReset(2);
                     navProvider.setSelectedIndex(2);
                     Navigator.pop(context);
                   },
@@ -76,6 +80,7 @@ class CustomDrawer extends StatelessWidget {
                   index: 3,
                   currentIndex: navProvider.selectedIndex,
                   onTap: () {
+                    navProvider.requestTabReset(3);
                     navProvider.setSelectedIndex(3);
                     Navigator.pop(context);
                   },
@@ -86,8 +91,15 @@ class CustomDrawer extends StatelessWidget {
                   icon: Icons.settings_rounded,
                   label: '설정',
                   onTap: () {
-                    // Navigate to settings if available
-                    Navigator.pop(context);
+                    // 설정 버튼 클릭 시 프로필 탭(3)으로 이동하고 계정 설정 화면 푸시 (TODO 12-1 반영)
+                    Navigator.pop(context); // 드로어 닫기
+                    
+                    if (user != null) {
+                      navProvider.pushToTab(3, AccountSettingsScreen(user: user));
+                    } else {
+                      // 유저 정보가 없으면 그냥 탭만 이동
+                      navProvider.setSelectedIndex(3);
+                    }
                   },
                 ),
                 _buildMenuItem(

@@ -217,13 +217,16 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () {
-              Navigator.push(
+            onTap: () async {
+              final result = await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => PostDetailScreen(postId: post.id),
                 ),
               );
+              if (result == true) {
+                _fetchPosts(refresh: true);
+              }
             },
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -232,14 +235,25 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
                 children: [
                   Row(
                     children: [
-                      const CircleAvatar(
+                      CircleAvatar(
                         radius: 18,
                         backgroundColor: kSurfaceHigh,
-                        child: Icon(
-                          Icons.person,
-                          size: 20,
-                          color: kOnSurfaceVariant,
-                        ),
+                        backgroundImage: (post.authorProfileImage != null &&
+                                post.authorProfileImage!.isNotEmpty)
+                            ? CachedNetworkImageProvider(
+                                ApiService.buildImageUrl(
+                                  post.authorProfileImage,
+                                )!,
+                              )
+                            : null,
+                        child: (post.authorProfileImage == null ||
+                                post.authorProfileImage!.isEmpty)
+                            ? const Icon(
+                                Icons.person,
+                                size: 20,
+                                color: kOnSurfaceVariant,
+                              )
+                            : null,
                       ),
                       const SizedBox(width: 10),
                       Expanded(

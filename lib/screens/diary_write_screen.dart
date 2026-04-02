@@ -899,11 +899,8 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
       }
 
       if (mounted) {
-        // 홈 화면으로 이동 (스택 초기화)
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const MainScreen()),
-          (route) => false,
-        );
+        // 부모 화면으로 돌아가며 갱신 필요 알림
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
@@ -973,11 +970,8 @@ class _DiaryWriteScreenState extends State<DiaryWriteScreen> {
         await ApiService.deletePost(widget.entryToEdit!.id);
 
         if (mounted) {
-          // 홈 화면으로 이동 (스택 초기화)
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const MainScreen()),
-            (route) => false,
-          );
+          // 부모 화면으로 돌아가며 갱신 필요 알림
+          Navigator.pop(context, true);
         }
       } catch (e) {
         if (mounted) {

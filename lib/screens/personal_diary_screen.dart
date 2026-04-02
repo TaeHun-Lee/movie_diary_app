@@ -26,14 +26,16 @@ class _PersonalDiaryScreenState extends State<PersonalDiaryScreen> {
   }
 
   Future<void> _navigateToWrite([DateTime? date]) async {
-    await Navigator.push(
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) =>
             PersonalDiaryWriteScreen(initialDate: date ?? DateTime.now()),
       ),
     );
-    // Provider 상태 갱신이 필요할 경우 호출 가능
+    if (result == true) {
+      _fetchDiaries();
+    }
   }
 
   @override
