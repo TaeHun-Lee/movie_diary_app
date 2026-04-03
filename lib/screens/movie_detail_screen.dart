@@ -16,6 +16,10 @@ class MovieDetailScreen extends StatefulWidget {
 }
 
 class _MovieDetailScreenState extends State<MovieDetailScreen> {
+  static const double _bottomCtaTopPadding = 16;
+  static const double _bottomCtaButtonVerticalPadding = 16;
+  static const double _bottomContentSpacing = 24;
+
   late Future<List<DiaryEntry>> _entriesFuture;
   bool _plotExpanded = false;
 
@@ -51,6 +55,14 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomSafeArea = MediaQuery.paddingOf(context).bottom;
+    final bottomOverlayHeight =
+        _bottomCtaTopPadding +
+        (_bottomCtaButtonVerticalPadding * 2) +
+        24 +
+        bottomSafeArea +
+        16;
+
     return Scaffold(
       backgroundColor: kSurface,
       body: Stack(
@@ -80,7 +92,12 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
               // -- 내 다이어리 --
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 32, 24, 120),
+                  padding: EdgeInsets.fromLTRB(
+                    24,
+                    32,
+                    24,
+                    bottomOverlayHeight + _bottomContentSpacing,
+                  ),
                   child: _buildMyDiarySection(),
                 ),
               ),
@@ -912,7 +929,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
         padding: EdgeInsets.only(
           left: 24,
           right: 24,
-          top: 16,
+          top: _bottomCtaTopPadding,
           bottom: MediaQuery.of(context).padding.bottom + 16,
         ),
         decoration: BoxDecoration(
@@ -955,7 +972,9 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                 }
               },
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  vertical: _bottomCtaButtonVerticalPadding,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: const [

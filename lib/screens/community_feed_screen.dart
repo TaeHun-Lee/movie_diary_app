@@ -198,6 +198,7 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
     final movie = post.movie;
     final createdAt = post.createdAt;
     final rating = post.rating;
+    final isSpoiler = post.isSpoiler;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -328,6 +329,38 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            if (isSpoiler) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: kError.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.warning_amber_rounded,
+                                      size: 14,
+                                      color: kError,
+                                    ),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      '스포일러 주의',
+                                      style: TextStyle(
+                                        color: kError,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                            ],
                             Text(
                               post.title,
                               style: const TextStyle(
@@ -349,13 +382,15 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              post.content ?? '',
+                              isSpoiler
+                                  ? '스포일러가 포함된 게시물입니다. 상세 화면에서 확인해 주세요.'
+                                  : (post.content ?? ''),
                               style: const TextStyle(
                                 color: kOnSurface,
                                 fontSize: 13,
                                 height: 1.5,
                               ),
-                              maxLines: 3,
+                              maxLines: isSpoiler ? 2 : 3,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ],

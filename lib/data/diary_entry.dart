@@ -55,7 +55,8 @@ class DiaryEntry {
       authorNickname: json['user']?['nickname'] ?? 'Unknown',
       authorProfileImage: json['user']?['profile_image'],
       likeCount: json['likes_count'] ?? (json['likes'] as List?)?.length ?? 0,
-      commentCount: (json['comments'] as List?)?.length ?? 0,
+      commentCount:
+          json['comments_count'] ?? (json['comments'] as List?)?.length ?? 0,
       isSpoiler: json['is_spoiler'] ?? false,
       isLiked: json['is_liked'] ?? false,
       images:
@@ -120,6 +121,7 @@ class DiaryEntry {
         'profile_image': authorProfileImage,
       },
       'likes_count': likeCount,
+      'comments_count': commentCount,
       'comments': List.generate(commentCount, (_) => {}),
       'is_spoiler': isSpoiler,
       'is_liked': isLiked,
